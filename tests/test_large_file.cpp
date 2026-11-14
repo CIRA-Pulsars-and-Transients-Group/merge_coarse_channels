@@ -1,8 +1,7 @@
 // Include the implementation to exercise the internal merge finalizer directly.
 #include "../src/SigprocFile.cpp"
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     if (argc != 2) {
         fprintf(stderr, "Expected a filterbank filename\n");
         return 1;

@@ -15,10 +15,9 @@
 // Callers may provide a diagnostic message; otherwise a generic message is used.
 class InvalidSourceFormat : public std::runtime_error {
 public:
-	InvalidSourceFormat() : std::runtime_error("InvalidSourceFormat") {};
-	InvalidSourceFormat(const std::string& what_arg) : std::runtime_error(what_arg)  {} ;
-	InvalidSourceFormat(const char* what_arg) : std::runtime_error(what_arg) {};
-
+    InvalidSourceFormat() : std::runtime_error("InvalidSourceFormat") {};
+    InvalidSourceFormat(const std::string& what_arg) : std::runtime_error(what_arg) {};
+    InvalidSourceFormat(const char* what_arg) : std::runtime_error(what_arg) {};
 };
 
 #endif /* INVALIDSOURCEFORMAT_H_ */
