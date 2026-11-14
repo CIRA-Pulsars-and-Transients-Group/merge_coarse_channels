@@ -33,9 +33,6 @@ for the build machine instead, configure with `-DMERGE_NATIVE_OPTIMIZATION=ON`.
 The resulting executable may not run on other CPUs. This option applies only
 to Release builds and cannot be used when cross-compiling.
 
-The integration test requires Python 3; it is registered when Python is
-available at CMake configure time.
-
 ### Platform options
 
 CMake detects the target OS by default (`CMAKE_SYSTEM_NAME`). Linux enables
@@ -74,3 +71,25 @@ Only complete spectra present in every input are written and included in the
 average. The program fails if no complete spectra can be merged.
 
 The extracted code is distributed under GPL-3.0; see [LICENSE](LICENSE).
+
+## Developer notes
+
+The integration test requires Python 3; it is registered when Python is
+available at CMake configure time.
+
+The C++ sources and tests use the project's `.clang-format` configuration,
+which requires clang-format 21 or newer. From the project root, check
+formatting with:
+
+```sh
+clang-format --dry-run --Werror src/*.cpp src/*.h tests/*.cpp
+```
+
+To apply the formatting:
+
+```sh
+clang-format -i src/*.cpp src/*.h tests/*.cpp
+```
+
+On macOS, use `xcrun clang-format` in place of `clang-format` if it is not
+available on your PATH.
