@@ -74,7 +74,7 @@ class MergeIntegration(unittest.TestCase):
             paths.append(str(path))
         output = self.directory / "result.fil"
         subprocess.run(
-            [str(EXECUTABLE), " , ".join(paths), str(output), *options],
+            [str(EXECUTABLE), " , ".join(paths), "-O", str(output), *options],
             cwd=self.directory, check=True, capture_output=True, text=True,
         )
         return read_fil(output)
@@ -312,11 +312,44 @@ class MergeIntegration(unittest.TestCase):
                 self.assertIn(f"option {options[1]}", result.stderr)
                 self.assertFalse(output.exists())
 
+    def test_output_option_and_default(self):
+        source = self.directory / "input.fil"
+        write_fil(source, 32, [[1, 2]])
+        subprocess.run(
+            [str(EXECUTABLE), str(source)],
+            cwd=self.directory, check=True, capture_output=True, text=True,
+        )
+        self.assertEqual(read_fil(self.directory / "out.fil")[1], (1, 2))
+        self.assertEqual(
+            (self.directory / "out.avg_spectrum").read_text().splitlines(),
+            ["0 1.0000", "1 2.0000"],
+        )
+        subprocess.run(
+            [str(EXECUTABLE), str(source), "legacy.fil", "-s", "-1", "-O", "chosen.fil"],
+            cwd=self.directory, check=True, capture_output=True, text=True,
+        )
+        header, samples = read_fil(self.directory / "chosen.fil")
+        self.assertEqual(header["foff"], 0.5)
+        self.assertEqual(samples, (1, 2))
+        self.assertTrue((self.directory / "chosen.avg_spectrum").is_file())
+        self.assertFalse((self.directory / "legacy.fil").exists())
+
+    def test_invalid_output_option(self):
+        for options in (("-O",), ("-O", "")):
+            with self.subTest(options=options):
+                result = subprocess.run(
+                    [str(EXECUTABLE), "input.fil", *options],
+                    cwd=self.directory, capture_output=True, text=True,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertTrue(result.stderr)
+                self.assertFalse((self.directory / "out.fil").exists())
+
     def test_output_without_extension(self):
         source = self.directory / "input.fil"
         write_fil(source, 32, [[1, 2]])
         subprocess.run(
-            [str(EXECUTABLE), str(source), "output"],
+            [str(EXECUTABLE), str(source), "-O", "output"],
             cwd=self.directory, check=True, capture_output=True, text=True,
         )
         self.assertTrue((self.directory / ".avg_spectrum").is_file())

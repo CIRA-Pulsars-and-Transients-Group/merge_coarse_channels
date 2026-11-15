@@ -21,21 +21,22 @@ bool gFreddaCompatibleOutput = false;
 double gOversamplingFactor = SigprocFile::default_oversampling_factor;
 
 void usage() {
-    printf("merge_coarse_channels in1.fil,in2.fil,in3.fil output_filfile\n");
-    printf(
-        "-s FOFF_SIGN : sign of FOFF (+1 or -1 to flip it) [default %d], 1-no change, -1 flip sign\n",
-        gFOFFSign);
-    printf(
-        "-o : files are oversampled [default %d]\n",
-        gOverSampled);
-    printf("-r FACTOR : oversampling factor, decimal or ratio (requires -o) [default 32/27]\n");
-    printf("-F : in oversampled mode, trim the output tail to a channel-count multiple\n"
-           "     of 128, 64, 16, 4 or 2 (largest applicable). The aim is to make the output\n"
-           "     compatible with FREDDA's requirements.\n");
+    printf("Usage: merge_coarse_channels INPUTS [options]\n"
+           "       merge_coarse_channels -h\n\n"
+           "INPUTS is a comma-separated list of filterbank files in merge order.\n\n"
+           "Options:\n"
+           "  -O FILE    Output filterbank file (default: out.fil)\n"
+           "  -s SIGN    Multiply the output FOFF by SIGN: 1 unchanged, -1 flipped (default: 1)\n"
+           "  -o         Merge oversampled coarse channels (default: critically sampled)\n"
+           "  -r FACTOR  Oversampling factor as a decimal or ratio; requires -o (default: 32/27)\n"
+           "  -F         With -o, trim the output tail to a multiple of 128, 64, 16, 4 or 2\n"
+           "             (largest applicable); does not check all FREDDA requirements\n"
+           "  -h         Show this help\n\n"
+           "A positional output file after INPUTS is also accepted for compatibility.\n");
 }
 
 void parse_cmdline(int argc, char* argv[]) {
-    char optstring[] = "hs:oFr:";
+    char optstring[] = "hs:oFr:O:";
     int opt;
     opterr = 0;
     bool factor_supplied = false;
@@ -54,6 +55,14 @@ void parse_cmdline(int argc, char* argv[]) {
 
         case 'o':
             gOverSampled = true;
+            break;
+
+        case 'O':
+            if (!optarg[0]) {
+                fprintf(stderr, "ERROR : output filename must not be empty\n");
+                exit(EXIT_FAILURE);
+            }
+            gOutputFilFile = optarg;
             break;
 
         case 'r': {
@@ -135,19 +144,20 @@ int main(int argc, char* argv[]) {
         exit(0);
     }
 
-    if (argc >= 2) {
-        gInputFilFiles = argv[1];
-    }
-    if (argc >= 3) {
+    gInputFilFiles = argv[1];
+    int options_start = 1;
+    if (argc >= 3 && argv[2][0] != '-') {
         gOutputFilFile = argv[2];
+        options_start = 2;
     }
+    // getopt treats the input or legacy output filename as argv[0].
+    parse_cmdline(argc - options_start, argv + options_start);
+
     // Use the output prefix before the final dot, or an empty prefix if absent.
     size_t dot = gOutputFilFile.find_last_of('.');
     gAvgSpectrumFile =
         (dot == std::string::npos ? "" : gOutputFilFile.substr(0, dot)) + ".avg_spectrum";
 
-    // getopt treats the output filename as argv[0] and parses the following options.
-    parse_cmdline(argc - 2, argv + 2);
     print_parameters();
 
     // The selected merge allocates the per-channel averages for the caller.

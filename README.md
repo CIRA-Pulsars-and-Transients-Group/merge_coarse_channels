@@ -54,9 +54,13 @@ so use a fresh build directory or explicitly reset them when changing targets.
 ## Usage
 
 ```sh
-build/merge_coarse_channels input1.fil,input2.fil output.fil [options]
-build/merge_coarse_channels -h
+merge_coarse_channels input1.fil,input2.fil [-O output.fil] [options]
+merge_coarse_channels -h
 ```
+
+`-O` selects the output filterbank file; the default is `out.fil`. The legacy
+positional output filename after the input list is also accepted; if both are
+given, `-O` takes precedence. Input files are merged in the order listed.
 
 The program writes an average spectrum alongside the output, with its
 extension replaced by `.avg_spectrum` (if the output has no dot, the original
