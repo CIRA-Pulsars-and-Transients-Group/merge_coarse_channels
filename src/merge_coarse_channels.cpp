@@ -1,11 +1,13 @@
 #include "SigprocFile.h"
 
+#include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -16,6 +18,7 @@ std::string gOutputFilFile = "out.fil";
 int gFOFFSign = 1;
 bool gOverSampled = false;
 bool gFreddaCompatibleOutput = false;
+double gOversamplingFactor = SigprocFile::default_oversampling_factor;
 
 void usage() {
     printf("merge_coarse_channels in1.fil,in2.fil,in3.fil output_filfile\n");
@@ -23,16 +26,18 @@ void usage() {
         "-s FOFF_SIGN : sign of FOFF (+1 or -1 to flip it) [default %d], 1-no change, -1 flip sign\n",
         gFOFFSign);
     printf(
-        "-o : files are oversampled in the same SKA-Low coarse channels are (32/27) [default %d]\n",
+        "-o : files are oversampled [default %d]\n",
         gOverSampled);
+    printf("-r FACTOR : oversampling factor, decimal or ratio (requires -o) [default 32/27]\n");
     printf(
         "-F : make sure FREDDA will be happy, for example : number of channels divides by 128 etc\n");
 }
 
 void parse_cmdline(int argc, char* argv[]) {
-    char optstring[] = "hs:oF";
+    char optstring[] = "hs:oFr:";
     int opt;
     opterr = 0;
+    bool factor_supplied = false;
 
     while ((opt = getopt(argc, argv, optstring)) != -1) {
         switch (opt) {
@@ -50,6 +55,29 @@ void parse_cmdline(int argc, char* argv[]) {
             gOverSampled = true;
             break;
 
+        case 'r': {
+            factor_supplied = true;
+            char* end = NULL;
+            errno = 0;
+            double numerator = strtod(optarg, &end);
+            bool valid = end != optarg && errno != ERANGE && std::isfinite(numerator);
+            double denominator = 1.0;
+            if (*end == '/') {
+                char* denominator_start = end + 1;
+                errno = 0;
+                denominator = strtod(denominator_start, &end);
+                valid = valid && end != denominator_start && errno != ERANGE &&
+                        std::isfinite(denominator) && denominator > 0;
+            }
+            gOversamplingFactor = valid ? numerator / denominator : 0.0;
+            if (!valid || *end != '\0' || !std::isfinite(gOversamplingFactor) ||
+                gOversamplingFactor <= 1.0) {
+                fprintf(stderr, "ERROR : oversampling factor must be finite and greater than 1\n");
+                exit(EXIT_FAILURE);
+            }
+            break;
+        }
+
         case 'h':
             usage();
             exit(EXIT_SUCCESS);
@@ -59,6 +87,11 @@ void parse_cmdline(int argc, char* argv[]) {
             usage();
             exit(EXIT_FAILURE);
         }
+    }
+
+    if (factor_supplied && !gOverSampled) {
+        fprintf(stderr, "ERROR : -r requires oversampled mode (-o)\n");
+        exit(EXIT_FAILURE);
     }
 
     // strtok_r modifies its input, so tokenize a writable copy of the file list.
@@ -87,6 +120,9 @@ void print_parameters() {
     printf("Average spectrum output file = %s\n", gAvgSpectrumFile.c_str());
     printf("FOFF SIGN = %d\n", gFOFFSign);
     printf("Channels oversampled = %d\n", gOverSampled);
+    if (gOverSampled) {
+        printf("Oversampling factor  = %.12g\n", gOversamplingFactor);
+    }
     printf("FREDDA compatible    = %d\n", gFreddaCompatibleOutput);
     printf("#####################################\n");
     fflush(stdout);
@@ -119,7 +155,7 @@ int main(int argc, char* argv[]) {
     if (gOverSampled) {
         out_channels = SigprocFile::MergeOversampledCoarseChannels(
             input_fil_files, gOutputFilFile.c_str(), avg_spectrum, gFOFFSign,
-            gFreddaCompatibleOutput);
+            gFreddaCompatibleOutput, gOversamplingFactor);
     } else {
         out_channels = SigprocFile::MergeCoarseChannels(input_fil_files, gOutputFilFile.c_str(),
                                                         avg_spectrum, gFOFFSign);

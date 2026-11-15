@@ -222,6 +222,79 @@ class MergeIntegration(unittest.TestCase):
         self.assertEqual(len(averages), 175)
         self.assertEqual(averages[0], f"0 {(expected[0] + expected[175]) / 2:.4f}")
 
+    def test_configurable_oversampling_factor(self):
+        spectra = [[[index * 100 + ch for ch in range(64)]] for index in range(3)]
+        expected = list(range(56))
+        expected[-1] = (55 + 108) / 2
+        expected += list(range(108, 155))
+        expected[-1] = (154 + 208) / 2
+        expected += list(range(208, 264))
+        for factor in ("4/3", str(4 / 3)):
+            with self.subTest(factor=factor):
+                header, samples = self.run_merge(spectra, options=("-o", "-r", factor))
+                self.assertEqual(header["nchans"], 159)
+                self.assertEqual(samples, tuple(expected))
+                averages = (self.directory / "result.avg_spectrum").read_text().splitlines()
+                self.assertEqual(averages, [f"{i} {v:.4f}" for i, v in enumerate(expected)])
+
+        default_header, default_samples = self.run_merge(spectra, options=("-o",))
+        explicit_header, explicit_samples = self.run_merge(
+            spectra, options=("-o", "-r", "32/27")
+        )
+        self.assertEqual(default_header["nchans"], explicit_header["nchans"])
+        self.assertEqual(default_samples, explicit_samples)
+
+    def test_fredda_trims_across_coarse_channel_boundaries(self):
+        spectra = [[[index * 100 + ch for ch in range(64)]] for index in range(100)]
+        full_header, full_samples = self.run_merge(spectra, options=("-o", "-r", "100"))
+        header, samples = self.run_merge(spectra, options=("-o", "-r", "100", "-F"))
+        self.assertEqual(full_header["nchans"], 164)
+        self.assertEqual(header["nchans"], 128)
+        self.assertEqual(samples, full_samples[:128])
+        averages = (self.directory / "result.avg_spectrum").read_text().splitlines()
+        self.assertEqual(averages, [f"{i} {v:.4f}" for i, v in enumerate(samples)])
+
+    def test_single_oversampled_input(self):
+        spectra = [[[ch for ch in range(64)]]]
+        header, samples = self.run_merge(spectra, options=("-o", "-r", "5/4"))
+        self.assertEqual(header["nchans"], 64)
+        self.assertEqual(samples, tuple(range(64)))
+
+    def test_invalid_oversampling_factors(self):
+        output = self.directory / "rejected.fil"
+        for factor in ("", "1", "0", "-2", "nan", "inf", "1/0", "1/-2",
+                       "1/2", "2/1/1", "2junk", "1e9999"):
+            with self.subTest(factor=factor):
+                result = subprocess.run(
+                    [str(EXECUTABLE), "input.fil", str(output), "-o", "-r", factor],
+                    cwd=self.directory, capture_output=True, text=True,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("oversampling factor", result.stderr)
+                self.assertFalse(output.exists())
+        result = subprocess.run(
+            [str(EXECUTABLE), "input.fil", str(output), "-r", "5/4"],
+            cwd=self.directory, capture_output=True, text=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("-r requires", result.stderr)
+        self.assertFalse(output.exists())
+
+    def test_oversampled_inputs_must_have_equal_channel_counts(self):
+        paths = []
+        for index, count in enumerate((64, 32)):
+            path = self.directory / f"unequal{index}.fil"
+            write_fil(path, 32, [[0] * count])
+            paths.append(str(path))
+        output = self.directory / "unequal-result.fil"
+        result = subprocess.run(
+            [str(EXECUTABLE), ",".join(paths), str(output), "-o", "-r", "5/4"],
+            cwd=self.directory, capture_output=True, text=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("channels (first one has", result.stderr)
+        self.assertFalse(output.exists())
+
     def test_removed_special_options_fail(self):
         help_result = subprocess.run(
             [str(EXECUTABLE), "-h"], capture_output=True, text=True, check=True,

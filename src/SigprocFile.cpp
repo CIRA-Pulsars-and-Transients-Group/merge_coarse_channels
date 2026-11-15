@@ -20,6 +20,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <algorithm>
+#include <cmath>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -453,7 +456,8 @@ static int merge_oversampled_data(const std::vector<std::unique_ptr<SigprocFile>
                                   SigprocFile& output, double* avg_spectrum, int coarse_channels,
                                   int fine_channels, int output_channels, int skip_last,
                                   int half_overlap) {
-    std::vector<float> out_spectrum(output_channels);
+    int untrimmed_channels = output_channels + skip_last;
+    std::vector<float> out_spectrum(untrimmed_channels);
     std::vector<unsigned char> byte_buffer(fine_channels);
     std::vector<float> float_buffer(fine_channels);
     bool all_ok = true;
@@ -461,7 +465,7 @@ static int merge_oversampled_data(const std::vector<std::unique_ptr<SigprocFile>
     int out_bytes_count = output_channels * sizeof(float);
 
     while (all_ok) {
-        memset(out_spectrum.data(), 0, out_bytes_count);
+        memset(out_spectrum.data(), 0, untrimmed_channels * sizeof(float));
         int n_read_total = 0;
         int out_channel_index = 0;
 
@@ -483,7 +487,8 @@ static int merge_oversampled_data(const std::vector<std::unique_ptr<SigprocFile>
             }
 
             if (i == 0) {
-                for (int ch = 0; ch < fine_channels - half_overlap; ch++) {
+                int last_ch = coarse_channels == 1 ? fine_channels : fine_channels - half_overlap;
+                for (int ch = 0; ch < last_ch; ch++) {
                     out_spectrum[out_channel_index++] = float_buffer[ch];
                 }
             } else {
@@ -493,13 +498,7 @@ static int merge_oversampled_data(const std::vector<std::unique_ptr<SigprocFile>
                     (out_spectrum[out_channel_index - 1] + float_buffer[half_overlap]) / 2.00;
                 int last_ch = fine_channels - (half_overlap + 1);
                 if (i == coarse_channels - 1) {
-                    last_ch = fine_channels - skip_last;
-                    if (last_ch < 0) {
-                        printf(
-                            "ERROR in code / data : cannot deacrease number of channels by more than %d fine channels\n",
-                            fine_channels);
-                        exit(-1);
-                    }
+                    last_ch = fine_channels;
                 }
                 for (int ch = half_overlap; ch < last_ch; ch++) {
                     out_spectrum[out_channel_index++] = float_buffer[ch];
@@ -513,10 +512,10 @@ static int merge_oversampled_data(const std::vector<std::unique_ptr<SigprocFile>
             printf("Written %" PRIu64 " spectra in total\n", n_out_spectra);
             break;
         }
-        if (out_channel_index != output_channels) {
+        if (out_channel_index != untrimmed_channels) {
             printf(
                 "ERROR in code : out_channel_index = %d != expected n_out_channels = %d -> exiting code\n",
-                out_channel_index, output_channels);
+                out_channel_index, untrimmed_channels);
             return -1;
         }
         if (output.WriteData(out_spectrum.data(), output_channels) != out_bytes_count) {
@@ -639,12 +638,17 @@ int SigprocFile::MergeCoarseChannels(std::vector<std::string>& fil_file_list, co
 
 int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_file_list,
                                                 const char* out_file, double*& avg_spectrum,
-                                                int foff_sign, bool bFreddaCompatibleOutput) {
+                                                int foff_sign, bool bFreddaCompatibleOutput,
+                                                double oversampling_factor) {
     int max_filfiles = fil_file_list.size();
     std::vector<std::unique_ptr<SigprocFile>> infiles;
 
     printf("INFO : SigprocFile::MergeOversampledCoarseChannels\n");
 
+    if (!std::isfinite(oversampling_factor) || oversampling_factor <= 1.0) {
+        fprintf(stderr, "ERROR : oversampling factor must be finite and greater than 1\n");
+        return -1;
+    }
     if (fil_file_list.size() > max_filfiles || fil_file_list.size() <= 0) {
         printf(
             "ERROR : maximum number of fil files for SigprocFile::MergeCoarseChannels exceeded (%d given , %d is limit , no files is not allowed either)\n",
@@ -657,9 +661,7 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
     outfil_file.Close();
 
     int n_channels_file0 = outfil_file.nchans();
-    double alpha = (400.00 / 512.00);
-    // The oversampling ratio determines how many fine channels overlap.
-    double beta = (32.00 / 27.00);
+    double beta = oversampling_factor;
 
     float foff = 0.00;
     int n_fine_ch = -1;
@@ -670,22 +672,34 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
         n_fine_ch = (infiles[i])->nchans();
 
         if (n_fine_ch != n_channels_file0) {
-            printf("WARNING : fil file %s has %d (first one has %d)\n", fil_file_list[i].c_str(),
-                   (infiles[i])->nchans(), n_channels_file0);
+            fprintf(stderr, "ERROR : fil file %s has %d channels (first one has %d)\n",
+                    fil_file_list[i].c_str(), n_fine_ch, n_channels_file0);
+            return -1;
         }
     }
 
     int n_coarse_ch = fil_file_list.size();
-    int n_cc_center = n_coarse_ch - 2;
-    double nc =
-        (n_fine_ch * (beta - 1) / beta); // number of fine channels in the overlapping region
-    int n_edge_channels = (n_fine_ch - int(nc / 2)) * 2;
-    int n_centre_channels = (n_coarse_ch - 2) * (n_fine_ch - int(nc / 2) - (int(nc / 2) + 1));
+    if (n_fine_ch <= 0) {
+        fprintf(stderr, "ERROR : input has no fine channels\n");
+        return -1;
+    }
+    double nc = n_fine_ch * ((beta - 1.0) / beta);
+    if (beta != default_oversampling_factor) {
+        // Keep the default's historical truncation; snap other near-integer overlaps.
+        double rounded_nc = std::round(nc);
+        if (rounded_nc < n_fine_ch &&
+            std::abs(nc - rounded_nc) <=
+                4 * std::numeric_limits<double>::epsilon() * n_fine_ch) {
+            nc = rounded_nc;
+        }
+    }
+    int half_overlap = std::min(int(nc / 2), (n_fine_ch - 1) / 2);
+    int n_edge_channels = (n_fine_ch - half_overlap) * 2;
+    int n_centre_channels = (n_coarse_ch - 2) * (n_fine_ch - half_overlap - (half_overlap + 1));
     int n_out_channels =
-        n_edge_channels +
-        n_centre_channels; // number of final fine channels after excluding overlapping regions
+        n_coarse_ch == 1 ? n_fine_ch : n_edge_channels + n_centre_channels;
     printf("DEBIG : n_fine_ch-int(nc/2) = %d , n_fine_ch-int(nc/2)-(int(nc/2)+1) = %d\n",
-           (n_fine_ch - int(nc / 2)), (n_fine_ch - int(nc / 2) - (int(nc / 2) + 1)));
+           (n_fine_ch - half_overlap), (n_fine_ch - half_overlap - (half_overlap + 1)));
     int skip_n_last_channels = 0;
     if (bFreddaCompatibleOutput) {
         printf("INFO : checking FREDDA requirements is enabled\n");
@@ -724,7 +738,7 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
     }
 
     printf("INFO : number of fine channels = %d -> overlapping channels = %.2f (%.8f)\n", n_fine_ch,
-           nc, (n_fine_ch * (beta - 1) / beta));
+           nc, nc);
     printf(
         "INFO : final number of channels in the stitched FIL file = %d (%d edge channels + %d centre channels)\n",
         n_out_channels, n_edge_channels, n_centre_channels);
@@ -734,7 +748,7 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
 
     prepare_merge_output(outfil_file, out_file, n_out_channels, foff * foff_sign, avg_spectrum);
     return merge_oversampled_data(infiles, outfil_file, avg_spectrum, n_coarse_ch, n_fine_ch,
-                                  n_out_channels, skip_n_last_channels, int(nc / 2));
+                                  n_out_channels, skip_n_last_channels, half_overlap);
 }
 
 int SigprocFile::WriteHeader(const char* filename, bool bClose, bool bNewFile) {

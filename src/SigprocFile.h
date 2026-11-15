@@ -27,6 +27,7 @@
  */
 class SigprocFile : public DataSource {
 public:
+    static constexpr double default_oversampling_factor = 32.0 / 27.0;
     // Open an existing filterbank, or construct metadata for a new one.
     SigprocFile(const char* filename, int header_size = -1);
     SigprocFile(int nbits, int nifs, int nchans, double fch1, double foff, double tstart,
@@ -67,7 +68,8 @@ public:
     static int MergeOversampledCoarseChannels(std::vector<std::string>& fil_file_list,
                                               const char* out_file, double*& avg_spectrum,
                                               int foff_sign = 1,
-                                              bool bFreddaCompatibleOutput = false);
+                                              bool bFreddaCompatibleOutput = false,
+                                              double oversampling_factor = default_oversampling_factor);
 
     int nifs() { return m_nifs; }
     int nbits() { return m_nbits; }

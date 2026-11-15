@@ -65,6 +65,12 @@ utility writes `.avg_spectrum` in the working directory). Oversampled mode
 `-F` enables the original FREDDA channel-count adjustment for oversampled
 merges. Without `-o`, the inputs are treated as critically sampled.
 
+With `-o`, `-r FACTOR` sets the oversampling factor as a decimal or a ratio,
+such as `-r 1.25` or `-r 5/4`. It must be finite and greater than 1; the
+default is 32/27. The existing overlap selection and boundary averaging are
+applied using the specified factor. Oversampled inputs must have equal channel
+counts.
+
 8-bit and 32-bit inputs can be combined; output samples are 32-bit floats.
 Each input must begin with the length-prefixed SIGPROC `HEADER_START` keyword.
 Only complete spectra present in every input are written and included in the
