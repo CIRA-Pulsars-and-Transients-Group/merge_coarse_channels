@@ -62,8 +62,15 @@ The program writes an average spectrum alongside the output, with its
 extension replaced by `.avg_spectrum` (if the output has no dot, the original
 utility writes `.avg_spectrum` in the working directory). Oversampled mode
 (`-o`) also writes `merged_fine_channels.txt` in the working directory.
-`-F` enables the original FREDDA channel-count adjustment for oversampled
-merges. Without `-o`, the inputs are treated as critically sampled.
+Without `-o`, the inputs are treated as critically sampled.
+
+For oversampled merges, `-F` trims channels from the end of the merged
+channel order to make the output count a multiple of 128, 64, 16, 4 or 2,
+preferring the largest applicable divisor. Already compatible counts are
+unchanged; a count below 2 cannot be adjusted. For example, 175 channels
+become 128. The output header, average spectrum, and `merged_fine_channels.txt`
+reflect the resulting count. Without `-o`, `-F` has no effect. This adjustment
+does not check other FREDDA compatibility requirements.
 
 With `-o`, `-r FACTOR` sets the oversampling factor as a decimal or a ratio,
 such as `-r 1.25` or `-r 5/4`. It must be finite and greater than 1; the

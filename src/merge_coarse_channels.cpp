@@ -29,8 +29,9 @@ void usage() {
         "-o : files are oversampled [default %d]\n",
         gOverSampled);
     printf("-r FACTOR : oversampling factor, decimal or ratio (requires -o) [default 32/27]\n");
-    printf(
-        "-F : make sure FREDDA will be happy, for example : number of channels divides by 128 etc\n");
+    printf("-F : in oversampled mode, trim the output tail to a channel-count multiple\n"
+           "     of 128, 64, 16, 4 or 2 (largest applicable). The aim is to make the output\n"
+           "     compatible with FREDDA's requirements.\n");
 }
 
 void parse_cmdline(int argc, char* argv[]) {
