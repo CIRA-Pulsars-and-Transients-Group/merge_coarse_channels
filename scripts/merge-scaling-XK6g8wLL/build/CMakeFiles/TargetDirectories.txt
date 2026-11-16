@@ -1,7 +1,0 @@
-/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/build/CMakeFiles/merge_coarse_channels.dir
-/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/build/CMakeFiles/edit_cache.dir
-/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/build/CMakeFiles/rebuild_cache.dir
-/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/build/CMakeFiles/list_install_components.dir
-/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/build/CMakeFiles/install.dir
-/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/build/CMakeFiles/install/local.dir
-/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/build/CMakeFiles/install/strip.dir
