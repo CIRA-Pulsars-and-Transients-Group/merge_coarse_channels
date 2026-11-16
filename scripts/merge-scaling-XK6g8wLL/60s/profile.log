@@ -1,0 +1,6 @@
+Results: /Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/60s/merge-profile-c0oumfxt
+Run 1: elapsed 3.923s, user 0.971s, system 2.893s, peak RSS 1.89 MiB
+Run 2: elapsed 3.714s, user 0.974s, system 2.569s, peak RSS 1.89 MiB
+Run 3: elapsed 3.688s, user 1.012s, system 2.492s, peak RSS 1.89 MiB
+Timing summary: /Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/60s/merge-profile-c0oumfxt/summary.json
+Compare repeated runs cautiously: filesystem caching can affect timings.

@@ -1,0 +1,28 @@
+{
+  "command": [
+    "/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/build/merge_coarse_channels",
+    "/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank0.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank1.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank2.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank3.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank4.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank5.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank6.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank7.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank8.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank9.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank10.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank11.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank12.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank13.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank14.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank15.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank16.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank17.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank18.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank19.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank20.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank21.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank22.fil,/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/inputs/filterbank23.fil",
+    "-O",
+    "/Users/bmeyers/code/mwa/merge-coarse-channels/scripts/merge-scaling-XK6g8wLL/30s/merge-profile-u1kavuax/output.fil"
+  ],
+  "runs": [
+    {
+      "elapsed_seconds": 2.657152459010831,
+      "user_seconds": 0.484041,
+      "system_seconds": 1.611434,
+      "peak_rss_bytes": 1982464
+    },
+    {
+      "elapsed_seconds": 1.7275081669940846,
+      "user_seconds": 0.48716699999999996,
+      "system_seconds": 1.213128,
+      "peak_rss_bytes": 1998848
+    },
+    {
+      "elapsed_seconds": 1.8317672080011107,
+      "user_seconds": 0.499639,
+      "system_seconds": 1.224474,
+      "peak_rss_bytes": 1982464
+    }
+  ]
+}
