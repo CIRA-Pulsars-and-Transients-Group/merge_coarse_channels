@@ -17,20 +17,19 @@ std::vector<std::string> input_fil_files;
 std::string gOutputFilFile = "out.fil";
 int gFOFFSign = 1;
 bool gOverSampled = false;
-bool gFreddaCompatibleOutput = false;
+bool gTrimChannels = false;
 double gOversamplingFactor = SigprocFile::default_oversampling_factor;
 
 void usage() {
-    printf("Usage: merge_coarse_channels INPUTS [options]\n"
-           "       merge_coarse_channels -h\n\n"
+    printf("Usage: merge_coarse_channels INPUTS [options]\n\n"
            "INPUTS is a comma-separated list of filterbank files in merge order.\n\n"
            "Options:\n"
            "  -O FILE    Output filterbank file (default: out.fil)\n"
            "  -s SIGN    Multiply the output FOFF by SIGN: 1 unchanged, -1 flipped (default: 1)\n"
            "  -o         Merge oversampled coarse channels (default: critically sampled)\n"
            "  -r FACTOR  Oversampling factor as a decimal or ratio; requires -o (default: 32/27)\n"
-           "  -F         With -o, trim the output tail to a multiple of 128, 64, 16, 4 or 2\n"
-           "             (largest applicable); does not check all FREDDA requirements\n"
+           "  -F         With -o, trim the output tail channels to the largest applicable\n"
+           "             multiple of 128, 64, 16, 4 or 2\n"
            "  -h         Show this help\n\n"
            "A positional output file after INPUTS is also accepted for compatibility.\n");
 }
@@ -50,7 +49,7 @@ void parse_cmdline(int argc, char* argv[]) {
             break;
 
         case 'F':
-            gFreddaCompatibleOutput = true;
+            gTrimChannels = true;
             break;
 
         case 'o':
@@ -133,7 +132,7 @@ void print_parameters() {
     if (gOverSampled) {
         printf("Oversampling factor  = %.12g\n", gOversamplingFactor);
     }
-    printf("FREDDA compatible    = %d\n", gFreddaCompatibleOutput);
+    printf("Trim channels        = %d\n", gTrimChannels);
     printf("#####################################\n");
     fflush(stdout);
 }
@@ -166,7 +165,7 @@ int main(int argc, char* argv[]) {
     if (gOverSampled) {
         out_channels = SigprocFile::MergeOversampledCoarseChannels(
             input_fil_files, gOutputFilFile.c_str(), avg_spectrum, gFOFFSign,
-            gFreddaCompatibleOutput, gOversamplingFactor);
+            gTrimChannels, gOversamplingFactor);
     } else {
         out_channels = SigprocFile::MergeCoarseChannels(input_fil_files, gOutputFilFile.c_str(),
                                                         avg_spectrum, gFOFFSign);
