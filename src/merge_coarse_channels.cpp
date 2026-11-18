@@ -21,8 +21,8 @@ int gFOFFSign = 1;
 bool gOverSampled = false;
 bool gTrimChannels = false;
 double gOversamplingFactor = SigprocFile::default_oversampling_factor;
-uint64_t gMaxOutputFileSize = 0;      // in megabytes, 0 = no limit
-double gMaxOutputFileDuration = 0.0;  // in seconds, 0.0 = no limit
+uint64_t gMaxOutputFileSize = 0;     // in megabytes, 0 = no limit
+double gMaxOutputFileDuration = 0.0; // in seconds, 0.0 = no limit
 
 void usage() {
     printf("Usage: merge_coarse_channels INPUTS [options]\n\n"
@@ -76,7 +76,8 @@ void parse_cmdline(int argc, char* argv[]) {
             double size_mb = strtod(optarg, &end);
             bool valid = end != optarg && errno != ERANGE && std::isfinite(size_mb) && size_mb > 0;
             if (!valid || *end != '\0') {
-                fprintf(stderr, "ERROR : maximum file size must be a positive number in megabytes\n");
+                fprintf(stderr,
+                        "ERROR : maximum file size must be a positive number in megabytes\n");
                 exit(EXIT_FAILURE);
             }
             gMaxOutputFileSize = static_cast<uint64_t>(size_mb * 1024.0 * 1024.0);
@@ -87,9 +88,11 @@ void parse_cmdline(int argc, char* argv[]) {
             char* end = NULL;
             errno = 0;
             double duration = strtod(optarg, &end);
-            bool valid = end != optarg && errno != ERANGE && std::isfinite(duration) && duration > 0;
+            bool valid =
+                end != optarg && errno != ERANGE && std::isfinite(duration) && duration > 0;
             if (!valid || *end != '\0') {
-                fprintf(stderr, "ERROR : maximum file duration must be a positive number in seconds\n");
+                fprintf(stderr,
+                        "ERROR : maximum file duration must be a positive number in seconds\n");
                 exit(EXIT_FAILURE);
             }
             gMaxOutputFileDuration = duration;
@@ -207,12 +210,12 @@ int main(int argc, char* argv[]) {
     int out_channels = 0;
     if (gOverSampled) {
         out_channels = SigprocFile::MergeOversampledCoarseChannels(
-            input_fil_files, gOutputFilFile.c_str(), avg_spectrum, gFOFFSign,
-            gTrimChannels, gOversamplingFactor, gMaxOutputFileSize, gMaxOutputFileDuration);
+            input_fil_files, gOutputFilFile.c_str(), avg_spectrum, gFOFFSign, gTrimChannels,
+            gOversamplingFactor, gMaxOutputFileSize, gMaxOutputFileDuration);
     } else {
-        out_channels = SigprocFile::MergeCoarseChannels(
-            input_fil_files, gOutputFilFile.c_str(), avg_spectrum, gFOFFSign,
-            gMaxOutputFileSize, gMaxOutputFileDuration);
+        out_channels =
+            SigprocFile::MergeCoarseChannels(input_fil_files, gOutputFilFile.c_str(), avg_spectrum,
+                                             gFOFFSign, gMaxOutputFileSize, gMaxOutputFileDuration);
     }
 
     if (out_channels < 0) {

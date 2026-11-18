@@ -68,18 +68,17 @@ public:
     // max_duration_seconds: 0.0 = no limit; >0.0 = split when duration exceeds this time
     static int MergeCoarseChannels(std::vector<std::string>& fil_file_list, const char* out_file,
                                    double*& avg_spectrum, int foff_sign = 1,
-                                   uint64_t max_file_size_bytes = 0, double max_duration_seconds = 0.0);
+                                   uint64_t max_file_size_bytes = 0,
+                                   double max_duration_seconds = 0.0);
 
     // Removes oversampled overlap channels and optionally trims the output
     // to a multiple of 128, 64, 16, 4 or 2 channels.
     // Same file splitting parameters as MergeCoarseChannels.
-    static int MergeOversampledCoarseChannels(std::vector<std::string>& fil_file_list,
-                                              const char* out_file, double*& avg_spectrum,
-                                              int foff_sign = 1,
-                                              bool bFreddaCompatibleOutput = false,
-                                              double oversampling_factor = default_oversampling_factor,
-                                              uint64_t max_file_size_bytes = 0,
-                                              double max_duration_seconds = 0.0);
+    static int MergeOversampledCoarseChannels(
+        std::vector<std::string>& fil_file_list, const char* out_file, double*& avg_spectrum,
+        int foff_sign = 1, bool bFreddaCompatibleOutput = false,
+        double oversampling_factor = default_oversampling_factor, uint64_t max_file_size_bytes = 0,
+        double max_duration_seconds = 0.0);
 
     int nifs() { return m_nifs; }
     int nbits() { return m_nbits; }

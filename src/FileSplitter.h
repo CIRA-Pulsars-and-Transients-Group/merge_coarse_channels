@@ -108,12 +108,12 @@ public:
     std::string GetExtension() const { return m_extension; }
 
 private:
-    std::string m_base_filename;      // Original filename as provided
-    std::string m_base_filename_no_ext; // Base name without extension
-    std::string m_extension;          // File extension (e.g., ".fil")
-    uint64_t m_max_file_size;         // Max file size in bytes (0 = no limit)
-    double m_max_duration;            // Max file duration in seconds (0.0 = no limit)
-    int m_current_sequence;           // Current file sequence number (1-indexed)
+    std::string m_base_filename;              // Original filename as provided
+    std::string m_base_filename_no_ext;       // Base name without extension
+    std::string m_extension;                  // File extension (e.g., ".fil")
+    uint64_t m_max_file_size;                 // Max file size in bytes (0 = no limit)
+    double m_max_duration;                    // Max file duration in seconds (0.0 = no limit)
+    int m_current_sequence;                   // Current file sequence number (1-indexed)
     std::vector<std::string> m_created_files; // List of all created filenames
 
     /**

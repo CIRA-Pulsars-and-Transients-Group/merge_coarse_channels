@@ -813,16 +813,18 @@ int SigprocFile::MergeCoarseChannels(std::vector<std::string>& fil_file_list, co
 
             if (splitter.NeedsSplit(projected_bytes, projected_duration)) {
                 printf("INFO : File size/duration limit reached, rotating to next file\n");
-                printf("       Current file bytes: %" PRIu64 ", duration: %.2f seconds, spectra: %" PRIu64 "\n",
+                printf("       Current file bytes: %" PRIu64
+                       ", duration: %.2f seconds, spectra: %" PRIu64 "\n",
                        current_file_bytes, current_file_duration, n_out_spectra);
 
                 finish_merge_output(outfil_file, null_spectrum, n_out_channels, n_out_spectra);
 
                 splitter.AdvanceToNextFile();
-                printf("INFO : Creating new output file: %s\n", splitter.GetCurrentFilename().c_str());
+                printf("INFO : Creating new output file: %s\n",
+                       splitter.GetCurrentFilename().c_str());
 
-                prepare_merge_output(outfil_file, splitter.GetCurrentFilename().c_str(), n_out_channels,
-                                     foff * foff_sign, null_spectrum);
+                prepare_merge_output(outfil_file, splitter.GetCurrentFilename().c_str(),
+                                     n_out_channels, foff * foff_sign, null_spectrum);
 
                 current_file_bytes = 0;
                 current_file_duration = 0.0;
@@ -929,16 +931,14 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
     if (beta != default_oversampling_factor) {
         double rounded_nc = std::round(nc);
         if (rounded_nc < n_fine_ch &&
-            std::abs(nc - rounded_nc) <=
-                4 * std::numeric_limits<double>::epsilon() * n_fine_ch) {
+            std::abs(nc - rounded_nc) <= 4 * std::numeric_limits<double>::epsilon() * n_fine_ch) {
             nc = rounded_nc;
         }
     }
     int half_overlap = std::min(int(nc / 2), (n_fine_ch - 1) / 2);
     int n_edge_channels = (n_fine_ch - half_overlap) * 2;
     int n_centre_channels = (n_coarse_ch - 2) * (n_fine_ch - half_overlap - (half_overlap + 1));
-    int n_out_channels =
-        n_coarse_ch == 1 ? n_fine_ch : n_edge_channels + n_centre_channels;
+    int n_out_channels = n_coarse_ch == 1 ? n_fine_ch : n_edge_channels + n_centre_channels;
     printf("DEBIG : n_fine_ch-int(nc/2) = %d , n_fine_ch-int(nc/2)-(int(nc/2)+1) = %d\n",
            (n_fine_ch - half_overlap), (n_fine_ch - half_overlap - (half_overlap + 1)));
     int skip_n_last_channels = 0;
