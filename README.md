@@ -95,7 +95,7 @@ The integration test requires Python 3; it is registered when Python is
 available at CMake configure time.
 
 The C++ sources and tests use the project's `.clang-format` configuration,
-which requires clang-format 21 or newer. From the project root, check
+which requires clang-format 20 or newer. From the project root, check
 formatting with:
 
 ```sh
