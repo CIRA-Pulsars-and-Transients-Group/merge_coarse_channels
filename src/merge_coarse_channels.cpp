@@ -1,6 +1,8 @@
 #include "SigprocFile.h"
+#include "FileSplitter.h"
 
 #include <errno.h>
+#include <inttypes.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +21,8 @@ int gFOFFSign = 1;
 bool gOverSampled = false;
 bool gTrimChannels = false;
 double gOversamplingFactor = SigprocFile::default_oversampling_factor;
+uint64_t gMaxOutputFileSize = 0;      // in megabytes, 0 = no limit
+double gMaxOutputFileDuration = 0.0;  // in seconds, 0.0 = no limit
 
 void usage() {
     printf("Usage: merge_coarse_channels INPUTS [options]\n\n"
@@ -30,12 +34,14 @@ void usage() {
            "  -r FACTOR  Oversampling factor as a decimal or ratio; requires -o (default: 32/27)\n"
            "  -F         With -o, trim the output tail channels to the largest applicable\n"
            "             multiple of 128, 64, 16, 4 or 2\n"
+           "  -M SIZE    Maximum output file size in megabytes (creates split files)\n"
+           "  -D DURATION Maximum output file duration in seconds (creates split files)\n"
            "  -h         Show this help\n\n"
            "A positional output file after INPUTS is also accepted for compatibility.\n");
 }
 
 void parse_cmdline(int argc, char* argv[]) {
-    char optstring[] = "hs:oFr:O:";
+    char optstring[] = "hs:oFr:O:M:D:";
     int opt;
     opterr = 0;
     bool factor_supplied = false;
@@ -63,6 +69,32 @@ void parse_cmdline(int argc, char* argv[]) {
             }
             gOutputFilFile = optarg;
             break;
+
+        case 'M': {
+            char* end = NULL;
+            errno = 0;
+            double size_mb = strtod(optarg, &end);
+            bool valid = end != optarg && errno != ERANGE && std::isfinite(size_mb) && size_mb > 0;
+            if (!valid || *end != '\0') {
+                fprintf(stderr, "ERROR : maximum file size must be a positive number in megabytes\n");
+                exit(EXIT_FAILURE);
+            }
+            gMaxOutputFileSize = static_cast<uint64_t>(size_mb * 1024.0 * 1024.0);
+            break;
+        }
+
+        case 'D': {
+            char* end = NULL;
+            errno = 0;
+            double duration = strtod(optarg, &end);
+            bool valid = end != optarg && errno != ERANGE && std::isfinite(duration) && duration > 0;
+            if (!valid || *end != '\0') {
+                fprintf(stderr, "ERROR : maximum file duration must be a positive number in seconds\n");
+                exit(EXIT_FAILURE);
+            }
+            gMaxOutputFileDuration = duration;
+            break;
+        }
 
         case 'r': {
             factor_supplied = true;
@@ -133,6 +165,17 @@ void print_parameters() {
         printf("Oversampling factor  = %.12g\n", gOversamplingFactor);
     }
     printf("Trim channels        = %d\n", gTrimChannels);
+    if (gMaxOutputFileSize > 0) {
+        printf("Max output file size = %" PRIu64 " bytes (%.1f MB)\n", gMaxOutputFileSize,
+               gMaxOutputFileSize / (1024.0 * 1024.0));
+    } else {
+        printf("Max output file size = disabled (no splitting by size)\n");
+    }
+    if (gMaxOutputFileDuration > 0.0) {
+        printf("Max output file duration = %.2f seconds\n", gMaxOutputFileDuration);
+    } else {
+        printf("Max output file duration = disabled (no splitting by duration)\n");
+    }
     printf("#####################################\n");
     fflush(stdout);
 }
@@ -165,10 +208,11 @@ int main(int argc, char* argv[]) {
     if (gOverSampled) {
         out_channels = SigprocFile::MergeOversampledCoarseChannels(
             input_fil_files, gOutputFilFile.c_str(), avg_spectrum, gFOFFSign,
-            gTrimChannels, gOversamplingFactor);
+            gTrimChannels, gOversamplingFactor, gMaxOutputFileSize, gMaxOutputFileDuration);
     } else {
-        out_channels = SigprocFile::MergeCoarseChannels(input_fil_files, gOutputFilFile.c_str(),
-                                                        avg_spectrum, gFOFFSign);
+        out_channels = SigprocFile::MergeCoarseChannels(
+            input_fil_files, gOutputFilFile.c_str(), avg_spectrum, gFOFFSign,
+            gMaxOutputFileSize, gMaxOutputFileDuration);
     }
 
     if (out_channels < 0) {

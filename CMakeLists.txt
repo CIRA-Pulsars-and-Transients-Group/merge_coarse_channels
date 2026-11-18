@@ -102,7 +102,7 @@ if(BUILD_TESTING)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
-        add_executable(test_large_file tests/test_large_file.cpp src/DataSource.cpp)
+        add_executable(test_large_file tests/test_large_file.cpp src/DataSource.cpp src/FileSplitter.cpp)
         target_compile_features(test_large_file PRIVATE cxx_std_20)
         set_target_properties(test_large_file PROPERTIES CXX_EXTENSIONS OFF)
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")

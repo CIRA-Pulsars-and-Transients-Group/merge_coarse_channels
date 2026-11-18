@@ -60,6 +60,30 @@ def read_fil(path):
     return header, samples
 
 
+def find_first_split_file(directory, base_name):
+    """Find the first split output file (base_name_0001.fil format or original name)."""
+    import pathlib
+    base_path = pathlib.Path(base_name)
+    
+    if not base_path.is_absolute():
+        base_path = directory / base_path
+    
+    base_stem = base_path.stem
+    base_dir = base_path.parent
+    base_ext = base_path.suffix
+    
+    # Try the split file first
+    first_split = base_dir / f"{base_stem}_0001{base_ext}"
+    if first_split.exists():
+        return first_split
+    
+    # Fall back to original file name (for cases where splitting is not applicable)
+    if base_path.exists():
+        return base_path
+    
+    raise FileNotFoundError(f"No output file found for {base_name}")
+
+
 class MergeIntegration(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -77,7 +101,8 @@ class MergeIntegration(unittest.TestCase):
             [str(EXECUTABLE), " , ".join(paths), "-O", str(output), *options],
             cwd=self.directory, check=True, capture_output=True, text=True,
         )
-        return read_fil(output)
+        output_file = find_first_split_file(self.directory, str(output))
+        return read_fil(output_file)
 
     def test_normal_merge_float_and_byte(self):
         spectra = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
@@ -143,7 +168,8 @@ class MergeIntegration(unittest.TestCase):
                     [str(EXECUTABLE), ",".join(paths), str(output), *options],
                     cwd=self.directory, check=True, capture_output=True, text=True,
                 )
-                mixed_header, mixed = read_fil(output)
+                mixed_output = find_first_split_file(self.directory, str(output))
+                mixed_header, mixed = read_fil(mixed_output)
                 self.assertEqual(mixed_header["nchans"], header["nchans"])
                 self.assertEqual(mixed, expected)
                 self.assertEqual((self.directory / "mixed.avg_spectrum").read_text(), expected_average)
@@ -319,7 +345,8 @@ class MergeIntegration(unittest.TestCase):
             [str(EXECUTABLE), str(source)],
             cwd=self.directory, check=True, capture_output=True, text=True,
         )
-        self.assertEqual(read_fil(self.directory / "out.fil")[1], (1, 2))
+        output_file = find_first_split_file(self.directory, str(self.directory / "out.fil"))
+        self.assertEqual(read_fil(output_file)[1], (1, 2))
         self.assertEqual(
             (self.directory / "out.avg_spectrum").read_text().splitlines(),
             ["0 1.0000", "1 2.0000"],
@@ -328,7 +355,8 @@ class MergeIntegration(unittest.TestCase):
             [str(EXECUTABLE), str(source), "legacy.fil", "-s", "-1", "-O", "chosen.fil"],
             cwd=self.directory, check=True, capture_output=True, text=True,
         )
-        header, samples = read_fil(self.directory / "chosen.fil")
+        output_file = find_first_split_file(self.directory, str(self.directory / "chosen.fil"))
+        header, samples = read_fil(output_file)
         self.assertEqual(header["foff"], 0.5)
         self.assertEqual(samples, (1, 2))
         self.assertTrue((self.directory / "chosen.avg_spectrum").is_file())
@@ -343,7 +371,7 @@ class MergeIntegration(unittest.TestCase):
                 )
                 self.assertNotEqual(result.returncode, 0)
                 self.assertTrue(result.stderr)
-                self.assertFalse((self.directory / "out.fil").exists())
+                self.assertFalse((self.directory / "out_0001.fil").exists())
 
     def test_output_without_extension(self):
         source = self.directory / "input.fil"
@@ -364,7 +392,8 @@ class MergeIntegration(unittest.TestCase):
             [str(EXECUTABLE), f",{first},,,{second},", str(output)],
             cwd=self.directory, check=True, capture_output=True, text=True,
         )
-        self.assertEqual(read_fil(output)[1], (1, 2, 3, 4))
+        output_file = find_first_split_file(self.directory, str(output))
+        self.assertEqual(read_fil(output_file)[1], (1, 2, 3, 4))
 
     def test_large_file_sizes_and_spectrum_count(self):
         source = self.directory / "large.fil"
@@ -396,7 +425,8 @@ class MergeIntegration(unittest.TestCase):
                     [str(EXECUTABLE), ",".join(map(str, (source, *others))), str(output), *options],
                     cwd=self.directory, capture_output=True, text=True, check=True, timeout=30,
                 )
-                header, samples = read_fil(output)
+                output_file = find_first_split_file(self.directory, str(output))
+                header, samples = read_fil(output_file)
                 self.assertEqual(len(samples), header["nchans"])
                 self.assertEqual(samples[:5], (0, 1, 2, 3, 4))
                 self.assertIn("Spectra count = 1\n", merge.stdout)
