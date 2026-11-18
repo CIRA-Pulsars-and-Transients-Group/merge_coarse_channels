@@ -62,31 +62,24 @@ public:
     // it is allocated with new[] and the caller must release it with delete[].
     // A supplied buffer must have room for all output channels.
     // Returns the output channel count on success, or -1 on a merge error.
-    static int MergeCoarseChannels(std::vector<std::string>& fil_file_list, const char* out_file,
-                                   double*& avg_spectrum, int foff_sign = 1);
-    
-    // Extended merge with file splitting support.
+    //
+    // File splitting parameters:
     // max_file_size_bytes: 0 = no limit; >0 = split when file exceeds this size
     // max_duration_seconds: 0.0 = no limit; >0.0 = split when duration exceeds this time
     static int MergeCoarseChannels(std::vector<std::string>& fil_file_list, const char* out_file,
-                                   double*& avg_spectrum, int foff_sign,
-                                   uint64_t max_file_size_bytes, double max_duration_seconds);
-    
-    // Removes oversampled overlap; the FREDDA option may also trim the final channels.
+                                   double*& avg_spectrum, int foff_sign = 1,
+                                   uint64_t max_file_size_bytes = 0, double max_duration_seconds = 0.0);
+
+    // Removes oversampled overlap channels and optionally trims the output
+    // to a multiple of 128, 64, 16, 4 or 2 channels.
+    // Same file splitting parameters as MergeCoarseChannels.
     static int MergeOversampledCoarseChannels(std::vector<std::string>& fil_file_list,
                                               const char* out_file, double*& avg_spectrum,
                                               int foff_sign = 1,
                                               bool bFreddaCompatibleOutput = false,
-                                              double oversampling_factor = default_oversampling_factor);
-    
-    // Extended oversampled merge with file splitting support.
-    static int MergeOversampledCoarseChannels(std::vector<std::string>& fil_file_list,
-                                              const char* out_file, double*& avg_spectrum,
-                                              int foff_sign,
-                                              bool bFreddaCompatibleOutput,
-                                              double oversampling_factor,
-                                              uint64_t max_file_size_bytes,
-                                              double max_duration_seconds);
+                                              double oversampling_factor = default_oversampling_factor,
+                                              uint64_t max_file_size_bytes = 0,
+                                              double max_duration_seconds = 0.0);
 
     int nifs() { return m_nifs; }
     int nbits() { return m_nbits; }
