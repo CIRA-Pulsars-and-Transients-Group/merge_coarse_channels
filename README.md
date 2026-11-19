@@ -5,6 +5,8 @@ from [mwafrb](https://github.com/marcinsokolowski/mwafrb). The small
 `msfitslib` utilities used by the original have been replaced with local
 equivalents; no `msfitslib`, CFITSIO or libnova installation is required.
 
+The extracted code is distributed under GPL-3.0; see [LICENSE](LICENSE).
+
 ## Build
 
 Requires CMake 3.16 or newer and a C++20 compiler targeting Linux or macOS.
@@ -26,7 +28,7 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-### Portability versus optimization
+### Optimization
 
 Release builds target the compiler's default CPU for portability. To optimize
 for the build machine instead, configure with `-DMERGE_NATIVE_OPTIMIZATION=ON`.
@@ -58,15 +60,40 @@ merge_coarse_channels input1.fil,input2.fil [-O output.fil] [options]
 merge_coarse_channels -h
 ```
 
-`-O` selects the output filterbank file; the default is `out.fil`. The legacy
-positional output filename after the input list is also accepted; if both are
-given, `-O` takes precedence. Input files are merged in the order listed.
+### Input and output files
+
+Input files are merged in the order listed. `-O` selects the output filterbank
+file; the default is `out.fil`. The legacy positional output filename after
+the input list is also accepted; if both are given, `-O` takes precedence.
 
 The program writes an average spectrum alongside the output, with its
 extension replaced by `.avg_spectrum` (if the output has no dot, the original
-utility writes `.avg_spectrum` in the working directory). Oversampled mode
-(`-o`) also writes `merged_fine_channels.txt` in the working directory.
-Without `-o`, the inputs are treated as critically sampled.
+utility writes `.avg_spectrum` in the working directory).
+
+### Splitting output files
+
+Use `-M SIZE` to set a maximum output-file size in megabytes, or `-D SECONDS`
+to set a maximum duration per output file. For example:
+
+```sh
+merge_coarse_channels input1.fil,input2.fil -O merged.fil -M 500
+merge_coarse_channels input1.fil,input2.fil -O merged.fil -D 600
+merge_coarse_channels input1.fil,input2.fil -O merged.fil -M 500 -D 600
+```
+
+When either limit is set, output is written to sequentially numbered files such
+as `merged_0001.fil`, `merged_0002.fil`, and so on. If both limits are set,
+the file is split when either limit is reached. Splits occur between spectra,
+so the limits are applied at spectrum boundaries. `-M` must be a positive
+number and is converted using 1 MB = 1024 × 1024 bytes; `-D` must be a
+positive duration in seconds. Without either option, the output is a single
+file named by `-O` (or `out.fil` by default).
+
+### Oversampled merges
+
+Use `-o` to merge oversampled coarse channels. Without it, inputs are treated
+as critically sampled. Oversampled mode also writes
+`merged_fine_channels.txt` in the working directory.
 
 For oversampled merges, `-F` trims channels from the end of the merged
 channel order to make the output count a multiple of 128, 64, 16, 4 or 2,
@@ -82,12 +109,14 @@ default is 32/27. The existing overlap selection and boundary averaging are
 applied using the specified factor. Oversampled inputs must have equal channel
 counts.
 
+### Supported input data
+
 8-bit and 32-bit inputs can be combined; output samples are 32-bit floats.
 Each input must begin with the length-prefixed SIGPROC `HEADER_START` keyword.
 Only complete spectra present in every input are written and included in the
 average. The program fails if no complete spectra can be merged.
 
-The extracted code is distributed under GPL-3.0; see [LICENSE](LICENSE).
+
 
 ## Developer notes
 
