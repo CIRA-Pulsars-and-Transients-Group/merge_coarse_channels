@@ -7,6 +7,7 @@
 
 #include "SigprocFile.h"
 #include "InvalidSourceFormat.h"
+#include "FileSplitter.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -546,211 +547,6 @@ static int merge_oversampled_data(const std::vector<std::unique_ptr<SigprocFile>
                : -1;
 }
 
-int SigprocFile::MergeCoarseChannels(std::vector<std::string>& fil_file_list, const char* out_file,
-                                     double*& avg_spectrum, int foff_sign) {
-    int max_filfiles = fil_file_list.size();
-    std::vector<std::unique_ptr<SigprocFile>> infiles;
-
-    if (fil_file_list.size() > max_filfiles || fil_file_list.size() <= 0) {
-        printf(
-            "ERROR : maximum number of fil files for SigprocFile::MergeCoarseChannels exceeded (%d given , %d is limit , no files is not allowed either)\n",
-            int(fil_file_list.size()), max_filfiles);
-        return -1;
-    }
-
-    SigprocFile outfil_file(fil_file_list[0].c_str());
-    outfil_file.nbits(32);
-    outfil_file.Close();
-
-    int n_channels_file0 = outfil_file.nchans();
-    int n_out_channels = 0;
-    float foff = 0.00;
-    for (int i = 0; i < fil_file_list.size(); i++) {
-        infiles.emplace_back(new SigprocFile(fil_file_list[i].c_str()));
-        foff = (infiles[i])->foff();
-
-        n_out_channels += (infiles[i])->nchans();
-        if ((infiles[i])->nchans() != n_channels_file0) {
-            printf("WARNING : fil file %s has %d (first one has %d)\n", fil_file_list[i].c_str(),
-                   (infiles[i])->nchans(), n_channels_file0);
-        }
-        printf("DEBUG : added %d channels -> total %d channels\n", (infiles[i])->nchans(),
-               n_out_channels);
-    }
-    printf("DEBUG : number of output channels = %d\n", n_out_channels);
-
-    prepare_merge_output(outfil_file, out_file, n_out_channels, foff * foff_sign, avg_spectrum);
-    std::vector<float> out_spectrum(n_out_channels);
-    std::vector<unsigned char> char_buffer(n_out_channels);
-    bool all_ok = true;
-    uint64_t n_out_spectra = 0;
-    int out_bytes_count = n_out_channels * sizeof(float);
-
-    while (all_ok) {
-        float* p_out_ptr = out_spectrum.data();
-        memset(out_spectrum.data(), '\0', out_bytes_count);
-
-        for (int i = 0; i < fil_file_list.size(); i++) {
-            int in_channels = (infiles[i])->nchans();
-            int bytes_to_read;
-            int n_read =
-                read_merge_spectrum(*infiles[i], p_out_ptr, char_buffer.data(), bytes_to_read);
-            if (n_read < 0) {
-                return -1;
-            }
-            if (n_read != bytes_to_read) {
-                printf("END OF FILE : read %d bytes expected %d bytes -> cannot continue\n", n_read,
-                       bytes_to_read);
-                all_ok = false;
-                break;
-            }
-            if (n_out_spectra <= 0) {
-                printf("INFO : auto-detected sizeof sample %d bits\n", (infiles[i])->nbits());
-            }
-            p_out_ptr += in_channels;
-        }
-        if (!all_ok) {
-            printf("Written %" PRIu64 " spectra in total\n", n_out_spectra);
-            break;
-        }
-        if (outfil_file.WriteData(out_spectrum.data(), n_out_channels) != out_bytes_count) {
-            fprintf(stderr, "ERROR : could not write merged spectrum\n");
-            return -1;
-        }
-        if (avg_spectrum) {
-            for (int j = 0; j < n_out_channels; j++) {
-                avg_spectrum[j] += out_spectrum[j];
-            }
-
-            if (n_out_spectra == 0) {
-                printf("DEBUG spectra :\n");
-                for (int j = 0; j < n_out_channels; j++) {
-                    printf("\t%d %.8f\n", j, avg_spectrum[j]);
-                }
-            }
-        }
-        n_out_spectra++;
-    }
-    return finish_merge_output(outfil_file, avg_spectrum, n_out_channels, n_out_spectra)
-               ? n_out_channels
-               : -1;
-}
-
-int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_file_list,
-                                                const char* out_file, double*& avg_spectrum,
-                                                int foff_sign, bool bFreddaCompatibleOutput,
-                                                double oversampling_factor) {
-    int max_filfiles = fil_file_list.size();
-    std::vector<std::unique_ptr<SigprocFile>> infiles;
-
-    printf("INFO : SigprocFile::MergeOversampledCoarseChannels\n");
-
-    if (!std::isfinite(oversampling_factor) || oversampling_factor <= 1.0) {
-        fprintf(stderr, "ERROR : oversampling factor must be finite and greater than 1\n");
-        return -1;
-    }
-    if (fil_file_list.size() > max_filfiles || fil_file_list.size() <= 0) {
-        printf(
-            "ERROR : maximum number of fil files for SigprocFile::MergeCoarseChannels exceeded (%d given , %d is limit , no files is not allowed either)\n",
-            int(fil_file_list.size()), max_filfiles);
-        return -1;
-    }
-
-    SigprocFile outfil_file(fil_file_list[0].c_str());
-    outfil_file.nbits(32);
-    outfil_file.Close();
-
-    int n_channels_file0 = outfil_file.nchans();
-    double beta = oversampling_factor;
-
-    float foff = 0.00;
-    int n_fine_ch = -1;
-    for (int i = 0; i < fil_file_list.size(); i++) {
-        infiles.emplace_back(new SigprocFile(fil_file_list[i].c_str()));
-
-        foff = (infiles[i])->foff();
-        n_fine_ch = (infiles[i])->nchans();
-
-        if (n_fine_ch != n_channels_file0) {
-            fprintf(stderr, "ERROR : fil file %s has %d channels (first one has %d)\n",
-                    fil_file_list[i].c_str(), n_fine_ch, n_channels_file0);
-            return -1;
-        }
-    }
-
-    int n_coarse_ch = fil_file_list.size();
-    if (n_fine_ch <= 0) {
-        fprintf(stderr, "ERROR : input has no fine channels\n");
-        return -1;
-    }
-    double nc = n_fine_ch * ((beta - 1.0) / beta);
-    if (beta != default_oversampling_factor) {
-        // Keep the default's historical truncation; snap other near-integer overlaps.
-        double rounded_nc = std::round(nc);
-        if (rounded_nc < n_fine_ch &&
-            std::abs(nc - rounded_nc) <=
-                4 * std::numeric_limits<double>::epsilon() * n_fine_ch) {
-            nc = rounded_nc;
-        }
-    }
-    int half_overlap = std::min(int(nc / 2), (n_fine_ch - 1) / 2);
-    int n_edge_channels = (n_fine_ch - half_overlap) * 2;
-    int n_centre_channels = (n_coarse_ch - 2) * (n_fine_ch - half_overlap - (half_overlap + 1));
-    int n_out_channels =
-        n_coarse_ch == 1 ? n_fine_ch : n_edge_channels + n_centre_channels;
-    printf("DEBIG : n_fine_ch-int(nc/2) = %d , n_fine_ch-int(nc/2)-(int(nc/2)+1) = %d\n",
-           (n_fine_ch - half_overlap), (n_fine_ch - half_overlap - (half_overlap + 1)));
-    int skip_n_last_channels = 0;
-    if (bFreddaCompatibleOutput) {
-        printf("INFO : checking FREDDA requirements is enabled\n");
-        std::vector<int> required_dividers;
-        // Prefer larger FREDDA-compatible divisors by trimming the output tail.
-        required_dividers.push_back(128);
-        required_dividers.push_back(64);
-        required_dividers.push_back(16);
-        required_dividers.push_back(4);
-        required_dividers.push_back(2);
-
-        for (int i = 0; i < required_dividers.size(); i++) {
-            int divider = required_dividers[i];
-            if ((n_out_channels % divider) != 0) {
-                printf(
-                    "WARNING : number of output channels = %d does not divide by %d (required by FREDDA)\n",
-                    n_out_channels, divider);
-
-                int div_divider = int(n_out_channels / divider);
-                int new_out_channels = div_divider * divider;
-
-                if (new_out_channels >= divider) {
-                    skip_n_last_channels = (n_out_channels - new_out_channels);
-                    printf(
-                        "WARNING : skipping last %d channels to make it divide by %d : %d -> %d\n",
-                        skip_n_last_channels, divider, n_out_channels, new_out_channels);
-                    n_out_channels = new_out_channels;
-                    break;
-                } else {
-                    printf(
-                        "WARNING : number of channels <%d (minimum dividable by %d) -> leaving unchanged at = %d\n",
-                        divider, divider, n_out_channels);
-                }
-            }
-        }
-    }
-
-    printf("INFO : number of fine channels = %d -> overlapping channels = %.2f (%.8f)\n", n_fine_ch,
-           nc, nc);
-    printf(
-        "INFO : final number of channels in the stitched FIL file = %d (%d edge channels + %d centre channels)\n",
-        n_out_channels, n_edge_channels, n_centre_channels);
-    FILE* out_f = fopen("merged_fine_channels.txt", "w");
-    fprintf(out_f, "%d\n", n_out_channels);
-    fclose(out_f);
-
-    prepare_merge_output(outfil_file, out_file, n_out_channels, foff * foff_sign, avg_spectrum);
-    return merge_oversampled_data(infiles, outfil_file, avg_spectrum, n_coarse_ch, n_fine_ch,
-                                  n_out_channels, skip_n_last_channels, half_overlap);
-}
-
 int SigprocFile::WriteHeader(const char* filename, bool bClose, bool bNewFile) {
     FILE* out_f = fopen(filename, "w");
     int ret = fwrite(m_hdr, sizeof(char), m_hdr_nbytes, out_f);
@@ -921,6 +717,416 @@ int SigprocFile::read(void* buffer, int size) {
         return -1;
     }
     return bytes_read;
+}
+
+int SigprocFile::MergeCoarseChannels(std::vector<std::string>& fil_file_list, const char* out_file,
+                                     double*& avg_spectrum, int foff_sign,
+                                     uint64_t max_file_size_bytes, double max_duration_seconds) {
+    int max_filfiles = fil_file_list.size();
+    std::vector<std::unique_ptr<SigprocFile>> infiles;
+
+    if (fil_file_list.size() > max_filfiles || fil_file_list.size() <= 0) {
+        printf(
+            "ERROR : maximum number of fil files for SigprocFile::MergeCoarseChannels exceeded (%d given , %d is limit , no files is not allowed either)\n",
+            int(fil_file_list.size()), max_filfiles);
+        return -1;
+    }
+
+    SigprocFile outfil_file(fil_file_list[0].c_str());
+    outfil_file.nbits(32);
+    outfil_file.Close();
+
+    int n_channels_file0 = outfil_file.nchans();
+    int n_out_channels = 0;
+    float foff = 0.00;
+    for (int i = 0; i < fil_file_list.size(); i++) {
+        infiles.emplace_back(new SigprocFile(fil_file_list[i].c_str()));
+        foff = (infiles[i])->foff();
+
+        n_out_channels += (infiles[i])->nchans();
+        if ((infiles[i])->nchans() != n_channels_file0) {
+            printf("WARNING : fil file %s has %d (first one has %d)\n", fil_file_list[i].c_str(),
+                   (infiles[i])->nchans(), n_channels_file0);
+        }
+        printf("DEBUG : added %d channels -> total %d channels\n", (infiles[i])->nchans(),
+               n_out_channels);
+    }
+    printf("DEBUG : number of output channels = %d\n", n_out_channels);
+
+    FileSplitter splitter(out_file, max_file_size_bytes, max_duration_seconds);
+
+    if (splitter.IsSplittingEnabled()) {
+        printf("INFO : File splitting enabled\n");
+        if (max_file_size_bytes > 0) {
+            printf("       Max file size: %" PRIu64 " bytes\n", max_file_size_bytes);
+        }
+        if (max_duration_seconds > 0.0) {
+            printf("       Max duration: %.2f seconds\n", max_duration_seconds);
+        }
+    }
+
+    prepare_merge_output(outfil_file, splitter.GetCurrentFilename().c_str(), n_out_channels,
+                         foff * foff_sign, avg_spectrum);
+
+    std::vector<float> out_spectrum(n_out_channels);
+    std::vector<unsigned char> char_buffer(n_out_channels);
+    bool all_ok = true;
+    uint64_t n_out_spectra = 0;
+    uint64_t n_out_spectra_total = 0;
+    int out_bytes_count = n_out_channels * sizeof(float);
+    uint64_t current_file_bytes = 0;
+    double current_file_duration = 0.0;
+    double tsamp = outfil_file.tsamp();
+    double* null_spectrum = NULL;
+
+    while (all_ok) {
+        float* p_out_ptr = out_spectrum.data();
+        memset(out_spectrum.data(), '\0', out_bytes_count);
+
+        for (int i = 0; i < fil_file_list.size(); i++) {
+            int in_channels = (infiles[i])->nchans();
+            int bytes_to_read;
+            int n_read =
+                read_merge_spectrum(*infiles[i], p_out_ptr, char_buffer.data(), bytes_to_read);
+            if (n_read < 0) {
+                return -1;
+            }
+            if (n_read != bytes_to_read) {
+                printf("END OF FILE : read %d bytes expected %d bytes -> cannot continue\n", n_read,
+                       bytes_to_read);
+                all_ok = false;
+                break;
+            }
+            if (n_out_spectra <= 0) {
+                printf("INFO : auto-detected sizeof sample %d bits\n", (infiles[i])->nbits());
+            }
+            p_out_ptr += in_channels;
+        }
+        if (!all_ok) {
+            printf("Written %" PRIu64 " spectra in total\n", n_out_spectra_total);
+            break;
+        }
+
+        if (splitter.IsSplittingEnabled() && n_out_spectra > 0) {
+            uint64_t projected_bytes = current_file_bytes + out_bytes_count;
+            double projected_duration = current_file_duration + tsamp;
+
+            if (splitter.NeedsSplit(projected_bytes, projected_duration)) {
+                printf("INFO : File size/duration limit reached, rotating to next file\n");
+                printf("       Current file bytes: %" PRIu64
+                       ", duration: %.2f seconds, spectra: %" PRIu64 "\n",
+                       current_file_bytes, current_file_duration, n_out_spectra);
+
+                finish_merge_output(outfil_file, null_spectrum, n_out_channels, n_out_spectra);
+
+                splitter.AdvanceToNextFile();
+                printf("INFO : Creating new output file: %s\n",
+                       splitter.GetCurrentFilename().c_str());
+
+                prepare_merge_output(outfil_file, splitter.GetCurrentFilename().c_str(),
+                                     n_out_channels, foff * foff_sign, null_spectrum);
+
+                current_file_bytes = 0;
+                current_file_duration = 0.0;
+                n_out_spectra = 0;
+            }
+        }
+
+        if (outfil_file.WriteData(out_spectrum.data(), n_out_channels) != out_bytes_count) {
+            fprintf(stderr, "ERROR : could not write merged spectrum\n");
+            return -1;
+        }
+
+        current_file_bytes += out_bytes_count;
+        current_file_duration += tsamp;
+
+        if (avg_spectrum) {
+            for (int j = 0; j < n_out_channels; j++) {
+                avg_spectrum[j] += out_spectrum[j];
+            }
+
+            if (n_out_spectra_total == 0) {
+                printf("DEBUG spectra :\n");
+                for (int j = 0; j < n_out_channels; j++) {
+                    printf("\t%d %.8f\n", j, avg_spectrum[j]);
+                }
+            }
+        }
+        n_out_spectra++;
+        n_out_spectra_total++;
+    }
+
+    // Always call finish_merge_output to handle error reporting for zero spectra
+    if (!finish_merge_output(outfil_file, null_spectrum, n_out_channels, n_out_spectra)) {
+        return -1;
+    }
+
+    if (avg_spectrum && n_out_spectra_total > 0) {
+        for (int ch = 0; ch < n_out_channels; ch++) {
+            avg_spectrum[ch] /= n_out_spectra_total;
+        }
+    }
+
+    std::vector<std::string> all_files = splitter.GetCreatedFiles();
+    if (all_files.size() > 1) {
+        printf("INFO : Merge complete with %zu output files\n", all_files.size());
+        for (size_t i = 0; i < all_files.size(); i++) {
+            printf("       [%zu] %s\n", i + 1, all_files[i].c_str());
+        }
+    }
+
+    return n_out_spectra_total > 0 ? n_out_channels : -1;
+}
+
+int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_file_list,
+                                                const char* out_file, double*& avg_spectrum,
+                                                int foff_sign, bool bFreddaCompatibleOutput,
+                                                double oversampling_factor,
+                                                uint64_t max_file_size_bytes,
+                                                double max_duration_seconds) {
+    int max_filfiles = fil_file_list.size();
+    std::vector<std::unique_ptr<SigprocFile>> infiles;
+
+    printf("INFO : SigprocFile::MergeOversampledCoarseChannels (with file splitting)\n");
+
+    if (!std::isfinite(oversampling_factor) || oversampling_factor <= 1.0) {
+        fprintf(stderr, "ERROR : oversampling factor must be finite and greater than 1\n");
+        return -1;
+    }
+    if (fil_file_list.size() > max_filfiles || fil_file_list.size() <= 0) {
+        printf(
+            "ERROR : maximum number of fil files for SigprocFile::MergeCoarseChannels exceeded (%d given , %d is limit , no files is not allowed either)\n",
+            int(fil_file_list.size()), max_filfiles);
+        return -1;
+    }
+
+    SigprocFile outfil_file(fil_file_list[0].c_str());
+    outfil_file.nbits(32);
+    outfil_file.Close();
+
+    int n_channels_file0 = outfil_file.nchans();
+    double beta = oversampling_factor;
+
+    float foff = 0.00;
+    int n_fine_ch = -1;
+    for (int i = 0; i < fil_file_list.size(); i++) {
+        infiles.emplace_back(new SigprocFile(fil_file_list[i].c_str()));
+
+        foff = (infiles[i])->foff();
+        n_fine_ch = (infiles[i])->nchans();
+
+        if (n_fine_ch != n_channels_file0) {
+            fprintf(stderr, "ERROR : fil file %s has %d channels (first one has %d)\n",
+                    fil_file_list[i].c_str(), n_fine_ch, n_channels_file0);
+            return -1;
+        }
+    }
+
+    int n_coarse_ch = fil_file_list.size();
+    if (n_fine_ch <= 0) {
+        fprintf(stderr, "ERROR : input has no fine channels\n");
+        return -1;
+    }
+    double nc = n_fine_ch * ((beta - 1.0) / beta);
+    if (beta != default_oversampling_factor) {
+        double rounded_nc = std::round(nc);
+        if (rounded_nc < n_fine_ch &&
+            std::abs(nc - rounded_nc) <= 4 * std::numeric_limits<double>::epsilon() * n_fine_ch) {
+            nc = rounded_nc;
+        }
+    }
+    int half_overlap = std::min(int(nc / 2), (n_fine_ch - 1) / 2);
+    int n_edge_channels = (n_fine_ch - half_overlap) * 2;
+    int n_centre_channels = (n_coarse_ch - 2) * (n_fine_ch - half_overlap - (half_overlap + 1));
+    int n_out_channels = n_coarse_ch == 1 ? n_fine_ch : n_edge_channels + n_centre_channels;
+    printf("DEBIG : n_fine_ch-int(nc/2) = %d , n_fine_ch-int(nc/2)-(int(nc/2)+1) = %d\n",
+           (n_fine_ch - half_overlap), (n_fine_ch - half_overlap - (half_overlap + 1)));
+    int skip_n_last_channels = 0;
+    if (bFreddaCompatibleOutput) {
+        printf("INFO : checking FREDDA requirements is enabled\n");
+        std::vector<int> required_dividers;
+        required_dividers.push_back(128);
+        required_dividers.push_back(64);
+        required_dividers.push_back(16);
+        required_dividers.push_back(4);
+        required_dividers.push_back(2);
+
+        for (int i = 0; i < required_dividers.size(); i++) {
+            int divider = required_dividers[i];
+            if ((n_out_channels % divider) != 0) {
+                printf(
+                    "WARNING : number of output channels = %d does not divide by %d (required by FREDDA)\n",
+                    n_out_channels, divider);
+
+                int div_divider = int(n_out_channels / divider);
+                int new_out_channels = div_divider * divider;
+
+                if (new_out_channels >= divider) {
+                    skip_n_last_channels = (n_out_channels - new_out_channels);
+                    printf(
+                        "WARNING : skipping last %d channels to make it divide by %d : %d -> %d\n",
+                        skip_n_last_channels, divider, n_out_channels, new_out_channels);
+                    n_out_channels = new_out_channels;
+                    break;
+                } else {
+                    printf(
+                        "WARNING : number of channels <%d (minimum dividable by %d) -> leaving unchanged at = %d\n",
+                        divider, divider, n_out_channels);
+                }
+            }
+        }
+    }
+
+    printf("INFO : number of fine channels = %d -> overlapping channels = %.2f (%.8f)\n", n_fine_ch,
+           nc, nc);
+    printf(
+        "INFO : final number of channels in the stitched FIL file = %d (%d edge channels + %d centre channels)\n",
+        n_out_channels, n_edge_channels, n_centre_channels);
+    FILE* out_f = fopen("merged_fine_channels.txt", "w");
+    fprintf(out_f, "%d\n", n_out_channels);
+    fclose(out_f);
+
+    FileSplitter splitter(out_file, max_file_size_bytes, max_duration_seconds);
+
+    if (splitter.IsSplittingEnabled()) {
+        printf("INFO : File splitting enabled for oversampled merge\n");
+        if (max_file_size_bytes > 0) {
+            printf("       Max file size: %" PRIu64 " bytes\n", max_file_size_bytes);
+        }
+        if (max_duration_seconds > 0.0) {
+            printf("       Max duration: %.2f seconds\n", max_duration_seconds);
+        }
+    }
+
+    prepare_merge_output(outfil_file, splitter.GetCurrentFilename().c_str(), n_out_channels,
+                         foff * foff_sign, avg_spectrum);
+
+    int untrimmed_channels = n_out_channels + skip_n_last_channels;
+    std::vector<float> out_spectrum(untrimmed_channels);
+    std::vector<unsigned char> byte_buffer(n_fine_ch);
+    std::vector<float> float_buffer(n_fine_ch);
+    bool all_ok = true;
+    uint64_t n_out_spectra = 0;
+    uint64_t n_out_spectra_total = 0;
+    int out_bytes_count = n_out_channels * sizeof(float);
+    uint64_t current_file_bytes = 0;
+    double current_file_duration = 0.0;
+    double tsamp = outfil_file.tsamp();
+    double* null_spectrum = NULL;
+
+    while (all_ok) {
+        memset(out_spectrum.data(), 0, untrimmed_channels * sizeof(float));
+        int n_read_total = 0;
+        int out_channel_index = 0;
+
+        for (int i = 0; i < n_coarse_ch; i++) {
+            int bytes_to_read;
+            int n_read = read_merge_spectrum(*infiles[i], float_buffer.data(), byte_buffer.data(),
+                                             bytes_to_read);
+            if (n_read < 0) {
+                return -1;
+            }
+            if (gDebugLevel >= 2) {
+                printf("DEBUG : read %d bytes -> n_read_total = %d\n", n_read, n_read_total);
+            }
+            if (n_read != bytes_to_read) {
+                printf("END OF FILE : read %d bytes expected %d bytes -> cannot continue\n", n_read,
+                       bytes_to_read);
+                all_ok = false;
+                break;
+            }
+
+            if (i == 0) {
+                int last_ch = n_coarse_ch == 1 ? n_fine_ch : n_fine_ch - half_overlap;
+                for (int ch = 0; ch < last_ch; ch++) {
+                    out_spectrum[out_channel_index++] = float_buffer[ch];
+                }
+            } else {
+                out_spectrum[out_channel_index - 1] =
+                    (out_spectrum[out_channel_index - 1] + float_buffer[half_overlap]) / 2.00;
+                int last_ch = n_fine_ch - (half_overlap + 1);
+                if (i == n_coarse_ch - 1) {
+                    last_ch = n_fine_ch;
+                }
+                for (int ch = half_overlap; ch < last_ch; ch++) {
+                    out_spectrum[out_channel_index++] = float_buffer[ch];
+                }
+            }
+            n_read_total += n_read;
+        }
+
+        if (!all_ok) {
+            printf("INFO : end of the file reached -> checking of condition skipped\n");
+            printf("Written %" PRIu64 " spectra in total\n", n_out_spectra_total);
+            break;
+        }
+        if (out_channel_index != untrimmed_channels) {
+            printf(
+                "ERROR in code : out_channel_index = %d != expected n_out_channels = %d -> exiting code\n",
+                out_channel_index, untrimmed_channels);
+            return -1;
+        }
+        if (outfil_file.WriteData(out_spectrum.data(), n_out_channels) != out_bytes_count) {
+            fprintf(stderr, "ERROR : could not write merged spectrum\n");
+            return -1;
+        }
+
+        if (avg_spectrum) {
+            for (int ch = 0; ch < n_out_channels; ch++) {
+                avg_spectrum[ch] += out_spectrum[ch];
+            }
+            if (gDebugLevel >= 1 && n_out_spectra_total == 0) {
+                printf("DEBUG spectra :\n");
+                for (int ch = 0; ch < n_out_channels; ch++) {
+                    printf("\t%d %.8f\n", ch, avg_spectrum[ch]);
+                }
+            }
+        }
+
+        n_out_spectra++;
+        n_out_spectra_total++;
+        current_file_bytes += out_bytes_count;
+        current_file_duration += tsamp;
+
+        if (gDebugLevel >= 1) {
+            printf("DEBUG : wrote %d channels , %" PRIu64 " spectra in total\n", n_out_channels,
+                   n_out_spectra_total);
+        }
+
+        // Check if we need to split
+        if (splitter.NeedsSplit(current_file_bytes, current_file_duration)) {
+            printf("INFO : Splitting file (bytes: %" PRIu64 ", duration: %.2fs)\n",
+                   current_file_bytes, current_file_duration);
+            finish_merge_output(outfil_file, null_spectrum, n_out_channels, n_out_spectra);
+            splitter.AdvanceToNextFile();
+            prepare_merge_output(outfil_file, splitter.GetCurrentFilename().c_str(), n_out_channels,
+                                 foff * foff_sign, null_spectrum);
+            current_file_bytes = 0;
+            current_file_duration = 0.0;
+            n_out_spectra = 0;
+        }
+    }
+
+    // Always call finish_merge_output to handle error reporting for zero spectra
+    if (!finish_merge_output(outfil_file, null_spectrum, n_out_channels, n_out_spectra)) {
+        return -1;
+    }
+
+    if (avg_spectrum && n_out_spectra_total > 0) {
+        for (int ch = 0; ch < n_out_channels; ch++) {
+            avg_spectrum[ch] /= n_out_spectra_total;
+        }
+    }
+
+    std::vector<std::string> all_files = splitter.GetCreatedFiles();
+    if (all_files.size() > 1) {
+        printf("INFO : Merge complete with %zu output files\n", all_files.size());
+        for (size_t i = 0; i < all_files.size(); i++) {
+            printf("       [%zu] %s\n", i + 1, all_files[i].c_str());
+        }
+    }
+
+    return n_out_spectra_total > 0 ? n_out_channels : -1;
 }
 
 size_t SigprocFile::read_samples(void** output) {

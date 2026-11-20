@@ -48,6 +48,7 @@ add_executable(merge_coarse_channels
     src/merge_coarse_channels.cpp
     src/SigprocFile.cpp
     src/DataSource.cpp
+    src/FileSplitter.cpp
 )
 target_compile_features(merge_coarse_channels PRIVATE cxx_std_20)
 set_target_properties(merge_coarse_channels PROPERTIES CXX_EXTENSIONS OFF)
@@ -92,9 +93,16 @@ install(TARGETS merge_coarse_channels RUNTIME DESTINATION bin)
 
 include(CTest)
 if(BUILD_TESTING)
+    # FileSplitter unit tests
+    add_executable(test_filesplitter tests/test_filesplitter.cpp src/FileSplitter.cpp)
+    target_compile_features(test_filesplitter PRIVATE cxx_std_20)
+    set_target_properties(test_filesplitter PROPERTIES CXX_EXTENSIONS OFF)
+    target_include_directories(test_filesplitter PRIVATE src)
+    add_test(NAME filesplitter COMMAND test_filesplitter)
+
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
-        add_executable(test_large_file tests/test_large_file.cpp src/DataSource.cpp)
+        add_executable(test_large_file tests/test_large_file.cpp src/DataSource.cpp src/FileSplitter.cpp)
         target_compile_features(test_large_file PRIVATE cxx_std_20)
         set_target_properties(test_large_file PROPERTIES CXX_EXTENSIONS OFF)
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
