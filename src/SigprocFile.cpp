@@ -32,8 +32,6 @@
 #include <fcntl.h>
 #endif
 
-int gDebugLevel = 0;
-
 /* Same as strstr but goes through *all* the string - even if it contains nulls
  *
  */
@@ -60,27 +58,16 @@ static char* find_string_in_header(char* header, int header_len, const char* tem
         int match = 1;
         for (int i = 0; i < template_len; i++) {
             if (header[start + i] != template_str[i]) {
-                if (gDebugLevel > 0) {
-                    printf("start = %d stopped at %c != %c\n", start, header[start + i],
-                           template_str[i]);
-                }
                 match = 0;
                 break;
             }
         }
 
         if (match) {
-            if (gDebugLevel > 0) {
-                printf("FOUND !!!\n");
-            }
             return (header + start);
         }
 
         start++;
-    }
-
-    if (gDebugLevel > 0) {
-        printf("NOT FOUND !!!\n");
     }
 
     return NULL;
@@ -222,8 +209,6 @@ int SigprocFile::SetHeaderValue(char* pHeader, int header_len, const char* keywo
             memcpy(szValue, p_value, sizeof(double));
 
             foff_value = *((double*)(szValue));
-            printf("CHECK : current header value of %s  = %.8f, changing to %.8f\n", keyword,
-                   foff_value, value);
 
             minus_foff = value;
             memcpy(p_value, &minus_foff, sizeof(double));
@@ -233,8 +218,6 @@ int SigprocFile::SetHeaderValue(char* pHeader, int header_len, const char* keywo
             memcpy(szValue, p_value, sizeof(int));
 
             foff_value_int = *((int*)(szValue));
-            printf("CHECK : current header value of %s  = %d, changing to %d\n", keyword,
-                   foff_value_int, value_int);
 
             minus_foff_int = value_int;
             memcpy(p_value, &minus_foff_int, sizeof(int));
@@ -314,7 +297,6 @@ int SigprocFile::FillHeader(bool recalc_tstart, bool fill_radec) {
     char szUTC[128];
     snprintf(szUTC, sizeof(szUTC), "%04d-%02d-%02dT%02d:%02d:%.3f", utc.tm_year + 1900,
              utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, sec);
-    printf("DEBUG : CFilFile::WriteHeader ux = %.6f -> mjd = %.8f and %s\n", m_tstart, mjd, szUTC);
 
     int idx = 0;
     idx = SetHeaderValue(m_hdr, m_hdr_nbytes, "HEADER_START", 0.00, 0, NULL, idx);
@@ -331,13 +313,9 @@ int SigprocFile::FillHeader(bool recalc_tstart, bool fill_radec) {
     idx = SetHeaderValue(m_hdr, m_hdr_nbytes, "src_raj", m_src_raj, 0, NULL, idx);
     idx = SetHeaderValue(m_hdr, m_hdr_nbytes, "src_dej", m_src_dej, 0, NULL, idx);
     idx = SetHeaderValue(m_hdr, m_hdr_nbytes, "telescope_id", 0.00, m_telescope_id, NULL, idx);
-    printf("DEBUG : added src_raj, src_decj and telescope_id to the header [%.8f,%.8f,%d]\n",
-           m_src_raj, m_src_dej, m_telescope_id);
 
     idx = SetHeaderValue(m_hdr, m_hdr_nbytes, "HEADER_END", 0.00, 0, NULL, idx);
     m_hdr_nbytes = idx;
-
-    printf("DEBUG : set nbits := %d\n", m_nbits);
 
     return idx;
 }
@@ -445,11 +423,6 @@ static bool finish_merge_output(SigprocFile& output, double* avg_spectrum, int c
         }
     }
 
-    printf("------------------------------------------------\n");
-    printf("STATISTICS :\n");
-    printf("------------------------------------------------\n");
-    printf("Spectra count = %" PRIu64 "\n", spectra);
-    printf("------------------------------------------------\n");
     return true;
 }
 
@@ -476,9 +449,6 @@ static int merge_oversampled_data(const std::vector<std::unique_ptr<SigprocFile>
                                              bytes_to_read);
             if (n_read < 0) {
                 return -1;
-            }
-            if (gDebugLevel >= 2) {
-                printf("DEBUG : read %d bytes -> n_read_total = %d\n", n_read, n_read_total);
             }
             if (n_read != bytes_to_read) {
                 printf("END OF FILE : read %d bytes expected %d bytes -> cannot continue\n", n_read,
@@ -511,6 +481,7 @@ static int merge_oversampled_data(const std::vector<std::unique_ptr<SigprocFile>
         if (!all_ok) {
             printf("INFO : end of the file reached -> checking of condition skipped\n");
             printf("Written %" PRIu64 " spectra in total\n", n_out_spectra);
+            printf("Spectra count = %" PRIu64 "\n", n_out_spectra);
             break;
         }
         if (out_channel_index != untrimmed_channels) {
@@ -528,19 +499,9 @@ static int merge_oversampled_data(const std::vector<std::unique_ptr<SigprocFile>
             for (int ch = 0; ch < output_channels; ch++) {
                 avg_spectrum[ch] += out_spectrum[ch];
             }
-            if (gDebugLevel >= 1 && n_out_spectra == 0) {
-                printf("DEBUG spectra :\n");
-                for (int ch = 0; ch < output_channels; ch++) {
-                    printf("\t%d %.8f\n", ch, avg_spectrum[ch]);
-                }
-            }
         }
 
         n_out_spectra++;
-        if (gDebugLevel >= 1) {
-            printf("DEBUG : wrote %d channels , %" PRIu64 " spectra in total\n", output_channels,
-                   n_out_spectra);
-        }
     }
     return finish_merge_output(output, avg_spectrum, output_channels, n_out_spectra)
                ? output_channels
@@ -632,8 +593,6 @@ SigprocFile::SigprocFile(const char* filename, int header_size)
     m_src_raj = header_double("src_raj");
     m_src_dej = header_double("src_dej");
 
-    printf("DEBUG : m_tstart = %.8f (SigprocFile::SigprocFile)\n", m_tstart);
-
     m_fd = fileno(m_file);
 
 #ifdef HAVE_POSIX_FADVISE
@@ -698,8 +657,6 @@ int SigprocFile::header_int(const char* hname) const {
 size_t SigprocFile::seek_sample(size_t t) {
     // Skip the header and t complete time samples (all IFs and channels).
     size_t boff = t * nifs() * nchans() * nbits() / 8 + m_hdr_nbytes;
-    printf("DEBUG : t = %ld , m_hdr_nbytes = %ld -> boff = %ld, file = %ld\n", t, m_hdr_nbytes,
-           boff, (long int)m_file);
     if (fseek(m_file, boff, SEEK_SET) < 0) {
         printf("SigprocFile: Could not seek to offset of file %s\n. Error: %s", m_filename,
                strerror(errno));
@@ -748,10 +705,7 @@ int SigprocFile::MergeCoarseChannels(std::vector<std::string>& fil_file_list, co
             printf("WARNING : fil file %s has %d (first one has %d)\n", fil_file_list[i].c_str(),
                    (infiles[i])->nchans(), n_channels_file0);
         }
-        printf("DEBUG : added %d channels -> total %d channels\n", (infiles[i])->nchans(),
-               n_out_channels);
     }
-    printf("DEBUG : number of output channels = %d\n", n_out_channels);
 
     FileSplitter splitter(out_file, max_file_size_bytes, max_duration_seconds);
 
@@ -804,6 +758,7 @@ int SigprocFile::MergeCoarseChannels(std::vector<std::string>& fil_file_list, co
         }
         if (!all_ok) {
             printf("Written %" PRIu64 " spectra in total\n", n_out_spectra_total);
+            printf("Spectra count = %" PRIu64 "\n", n_out_spectra_total);
             break;
         }
 
@@ -843,13 +798,6 @@ int SigprocFile::MergeCoarseChannels(std::vector<std::string>& fil_file_list, co
         if (avg_spectrum) {
             for (int j = 0; j < n_out_channels; j++) {
                 avg_spectrum[j] += out_spectrum[j];
-            }
-
-            if (n_out_spectra_total == 0) {
-                printf("DEBUG spectra :\n");
-                for (int j = 0; j < n_out_channels; j++) {
-                    printf("\t%d %.8f\n", j, avg_spectrum[j]);
-                }
             }
         }
         n_out_spectra++;
@@ -939,8 +887,6 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
     int n_edge_channels = (n_fine_ch - half_overlap) * 2;
     int n_centre_channels = (n_coarse_ch - 2) * (n_fine_ch - half_overlap - (half_overlap + 1));
     int n_out_channels = n_coarse_ch == 1 ? n_fine_ch : n_edge_channels + n_centre_channels;
-    printf("DEBIG : n_fine_ch-int(nc/2) = %d , n_fine_ch-int(nc/2)-(int(nc/2)+1) = %d\n",
-           (n_fine_ch - half_overlap), (n_fine_ch - half_overlap - (half_overlap + 1)));
     int skip_n_last_channels = 0;
     if (bFreddaCompatibleOutput) {
         printf("INFO : checking FREDDA requirements is enabled\n");
@@ -1026,9 +972,6 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
             if (n_read < 0) {
                 return -1;
             }
-            if (gDebugLevel >= 2) {
-                printf("DEBUG : read %d bytes -> n_read_total = %d\n", n_read, n_read_total);
-            }
             if (n_read != bytes_to_read) {
                 printf("END OF FILE : read %d bytes expected %d bytes -> cannot continue\n", n_read,
                        bytes_to_read);
@@ -1058,6 +1001,7 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
         if (!all_ok) {
             printf("INFO : end of the file reached -> checking of condition skipped\n");
             printf("Written %" PRIu64 " spectra in total\n", n_out_spectra_total);
+            printf("Spectra count = %" PRIu64 "\n", n_out_spectra_total);
             break;
         }
         if (out_channel_index != untrimmed_channels) {
@@ -1075,23 +1019,12 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
             for (int ch = 0; ch < n_out_channels; ch++) {
                 avg_spectrum[ch] += out_spectrum[ch];
             }
-            if (gDebugLevel >= 1 && n_out_spectra_total == 0) {
-                printf("DEBUG spectra :\n");
-                for (int ch = 0; ch < n_out_channels; ch++) {
-                    printf("\t%d %.8f\n", ch, avg_spectrum[ch]);
-                }
-            }
         }
 
         n_out_spectra++;
         n_out_spectra_total++;
         current_file_bytes += out_bytes_count;
         current_file_duration += tsamp;
-
-        if (gDebugLevel >= 1) {
-            printf("DEBUG : wrote %d channels , %" PRIu64 " spectra in total\n", n_out_channels,
-                   n_out_spectra_total);
-        }
 
         // Check if we need to split
         if (splitter.NeedsSplit(current_file_bytes, current_file_duration)) {

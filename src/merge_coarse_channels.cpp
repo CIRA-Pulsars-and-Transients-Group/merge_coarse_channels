@@ -153,33 +153,30 @@ void parse_cmdline(int argc, char* argv[]) {
 }
 
 void print_parameters() {
-    printf("#####################################\n");
-    printf("PARAMETERS :\n");
-    printf("#####################################\n");
-    printf("Input  fil files   = %s\n", gInputFilFiles.c_str());
+    printf("PARAMETERS:\n");
+    printf("  Input  fil files = %s\n", gInputFilFiles.c_str());
     for (const auto& input : input_fil_files) {
-        printf("\t%s\n", input.c_str());
+        printf("    %s\n", input.c_str());
     }
-    printf("Output fil file  = %s\n", gOutputFilFile.c_str());
-    printf("Average spectrum output file = %s\n", gAvgSpectrumFile.c_str());
-    printf("FOFF SIGN = %d\n", gFOFFSign);
-    printf("Channels oversampled = %d\n", gOverSampled);
+    printf("  Output fil file = %s\n", gOutputFilFile.c_str());
+    printf("  Average spectrum output file = %s\n", gAvgSpectrumFile.c_str());
+    printf("  FOFF SIGN = %d\n", gFOFFSign);
+    printf("  Channels oversampled = %d\n", gOverSampled);
     if (gOverSampled) {
-        printf("Oversampling factor  = %.12g\n", gOversamplingFactor);
+        printf("  Oversampling factor = %.12g\n", gOversamplingFactor);
     }
-    printf("Trim channels        = %d\n", gTrimChannels);
+    printf("  Trim channels = %d\n", gTrimChannels);
     if (gMaxOutputFileSize > 0) {
-        printf("Max output file size = %" PRIu64 " bytes (%.1f MB)\n", gMaxOutputFileSize,
+        printf("  Max output file size = %" PRIu64 " bytes (%.1f MB)\n", gMaxOutputFileSize,
                gMaxOutputFileSize / (1024.0 * 1024.0));
     } else {
-        printf("Max output file size = disabled (no splitting by size)\n");
+        printf("  Max output file size = disabled (no splitting by size)\n");
     }
     if (gMaxOutputFileDuration > 0.0) {
-        printf("Max output file duration = %.2f seconds\n", gMaxOutputFileDuration);
+        printf("  Max output file duration = %.2f seconds\n", gMaxOutputFileDuration);
     } else {
-        printf("Max output file duration = disabled (no splitting by duration)\n");
+        printf("  Max output file duration = disabled (no splitting by duration)\n");
     }
-    printf("#####################################\n");
     fflush(stdout);
 }
 
