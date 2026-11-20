@@ -1,7 +1,7 @@
 # merge_coarse_channels
 
 Standalone extraction of `merge_coarse_channels` and its SIGPROC dependencies
-from [mwafrb](https://github.com/marcinsokolowski/mwafrb). The small
+from Marcin Sokolowski's [mwafrb](https://github.com/marcinsokolowski/mwafrb). The small
 `msfitslib` utilities used by the original have been replaced with local
 equivalents; no `msfitslib`, CFITSIO or libnova installation is required.
 The original implementation of a lot of the code here was done by Keith Bannister.
