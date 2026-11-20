@@ -13,7 +13,7 @@ IncludeBlocks: Preserve
 ReflowComments: false
 BreakStringLiterals: false
 Language: Cpp
-Standard: c++17
+Standard: c++20
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
