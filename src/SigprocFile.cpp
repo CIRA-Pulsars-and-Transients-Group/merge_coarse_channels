@@ -889,7 +889,7 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
     int n_out_channels = n_coarse_ch == 1 ? n_fine_ch : n_edge_channels + n_centre_channels;
     int skip_n_last_channels = 0;
     if (bFreddaCompatibleOutput) {
-        printf("INFO : checking FREDDA requirements is enabled\n");
+        printf("INFO : channel count compatibility trimming is enabled\n");
         std::vector<int> required_dividers;
         required_dividers.push_back(128);
         required_dividers.push_back(64);
@@ -901,7 +901,7 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
             int divider = required_dividers[i];
             if ((n_out_channels % divider) != 0) {
                 printf(
-                    "WARNING : number of output channels = %d does not divide by %d (required by FREDDA)\n",
+                    "WARNING : number of output channels = %d is not divisible by %d\n",
                     n_out_channels, divider);
 
                 int div_divider = int(n_out_channels / divider);
@@ -910,13 +910,13 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
                 if (new_out_channels >= divider) {
                     skip_n_last_channels = (n_out_channels - new_out_channels);
                     printf(
-                        "WARNING : skipping last %d channels to make it divide by %d : %d -> %d\n",
-                        skip_n_last_channels, divider, n_out_channels, new_out_channels);
+                        "INFO : trimming last %d channels for compatibility: %d -> %d\n",
+                        skip_n_last_channels, n_out_channels, new_out_channels);
                     n_out_channels = new_out_channels;
                     break;
                 } else {
                     printf(
-                        "WARNING : number of channels <%d (minimum dividable by %d) -> leaving unchanged at = %d\n",
+                        "INFO : %d is below minimum trimming threshold (%d channels) -> keeping %d channels\n",
                         divider, divider, n_out_channels);
                 }
             }
