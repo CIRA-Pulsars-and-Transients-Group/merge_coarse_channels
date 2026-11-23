@@ -19,6 +19,7 @@ ctest --test-dir build --output-on-failure
 cmake --install build --prefix /path/to/install
 ```
 
+You can change your compiler with the usual `-DCMAKE_CXX_COMPILER=...` flag.
 Single-configuration generators default to `Release`, using the compiler's
 optimized Release flags and link-time optimization when supported. Specify
 `-DCMAKE_BUILD_TYPE=Debug` for a debug build. With a multi-configuration
