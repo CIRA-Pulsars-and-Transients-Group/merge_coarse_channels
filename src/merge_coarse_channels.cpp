@@ -279,10 +279,6 @@ int main(int argc, char* argv[]) {
     printf("INFO: Merge operation completed successfully\n");
     printf("INFO: Output channels: %d\n", out_channels);
 
-    // Output files summary
-    printf("INFO: Output files created:\n");
-    printf("       [1] %s_0001.fil\n", gOutputFilFile.c_str());
-
     FILE* out_f = fopen(gAvgSpectrumFile.c_str(), "w");
     if (!out_f) {
         fprintf(stderr, "ERROR: Cannot create average spectrum file '%s': %s\n",

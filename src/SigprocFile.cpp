@@ -935,7 +935,7 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
     FileSplitter splitter(out_file, max_file_size_bytes, max_duration_seconds);
 
     if (splitter.IsSplittingEnabled()) {
-        printf("INFO : File splitting enabled for oversampled merge\n");
+        printf("INFO : File splitting enabled\n");
         if (max_file_size_bytes > 0) {
             printf("       Max file size: %" PRIu64 " bytes\n", max_file_size_bytes);
         }
@@ -1028,10 +1028,14 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
 
         // Check if we need to split
         if (splitter.NeedsSplit(current_file_bytes, current_file_duration)) {
-            printf("INFO : Splitting file (bytes: %" PRIu64 ", duration: %.2fs)\n",
-                   current_file_bytes, current_file_duration);
+            printf("INFO : File size/duration limit reached, rotating to next file\n");
+            printf("       Current file bytes: %" PRIu64
+                   ", duration: %.2f seconds, spectra: %" PRIu64 "\n",
+                   current_file_bytes, current_file_duration, n_out_spectra);
             finish_merge_output(outfil_file, null_spectrum, n_out_channels, n_out_spectra);
             splitter.AdvanceToNextFile();
+            printf("INFO : Creating new output file: %s\n",
+                   splitter.GetCurrentFilename().c_str());
             prepare_merge_output(outfil_file, splitter.GetCurrentFilename().c_str(), n_out_channels,
                                  foff * foff_sign, null_spectrum);
             current_file_bytes = 0;
