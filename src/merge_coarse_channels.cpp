@@ -153,33 +153,80 @@ void parse_cmdline(int argc, char* argv[]) {
 }
 
 void print_parameters() {
-    printf("#####################################\n");
-    printf("PARAMETERS :\n");
-    printf("#####################################\n");
-    printf("Input  fil files   = %s\n", gInputFilFiles.c_str());
+    printf("PARAMETERS:\n");
+    printf("  Input .fil files = %s\n", gInputFilFiles.c_str());
     for (const auto& input : input_fil_files) {
-        printf("\t%s\n", input.c_str());
+        printf("    %s\n", input.c_str());
     }
-    printf("Output fil file  = %s\n", gOutputFilFile.c_str());
-    printf("Average spectrum output file = %s\n", gAvgSpectrumFile.c_str());
-    printf("FOFF SIGN = %d\n", gFOFFSign);
-    printf("Channels oversampled = %d\n", gOverSampled);
+    printf("  Output .fil file stub = %s\n", gOutputFilFile.c_str());
+    printf("  Average spectrum output file = %s\n", gAvgSpectrumFile.c_str());
+    printf("  FOFF sign = %d\n", gFOFFSign);
+    printf("  Channels oversampled = %d\n", gOverSampled);
     if (gOverSampled) {
-        printf("Oversampling factor  = %.12g\n", gOversamplingFactor);
+        printf("  Oversampling factor = %.12g\n", gOversamplingFactor);
     }
-    printf("Trim channels        = %d\n", gTrimChannels);
+    printf("  Trim channels = %d\n", gTrimChannels);
     if (gMaxOutputFileSize > 0) {
-        printf("Max output file size = %" PRIu64 " bytes (%.1f MB)\n", gMaxOutputFileSize,
+        printf("  Max output file size = %" PRIu64 " bytes (%.1f MB)\n", gMaxOutputFileSize,
                gMaxOutputFileSize / (1024.0 * 1024.0));
     } else {
-        printf("Max output file size = disabled (no splitting by size)\n");
+        printf("  Max output file size = disabled (no splitting by size)\n");
     }
     if (gMaxOutputFileDuration > 0.0) {
-        printf("Max output file duration = %.2f seconds\n", gMaxOutputFileDuration);
+        printf("  Max output file duration = %.2f seconds\n", gMaxOutputFileDuration);
     } else {
-        printf("Max output file duration = disabled (no splitting by duration)\n");
+        printf("  Max output file duration = disabled (no splitting by duration)\n");
     }
-    printf("#####################################\n");
+    fflush(stdout);
+}
+
+void print_validation_messages() {
+    // File splitting configuration
+    if (gMaxOutputFileSize > 0 || gMaxOutputFileDuration > 0.0) {
+        printf("INFO: File splitting enabled\n");
+        if (gMaxOutputFileSize > 0) {
+            printf("       Size limit: %.1f MB\n", gMaxOutputFileSize / (1024.0 * 1024.0));
+        }
+        if (gMaxOutputFileDuration > 0.0) {
+            printf("       Duration limit: %.2f seconds (%.2f min)\n", gMaxOutputFileDuration,
+                   gMaxOutputFileDuration / 60.0);
+        }
+    } else {
+        printf("INFO: File splitting disabled (single output file)\n");
+    }
+
+    // Input file preparation
+    printf("INFO: Preparing to merge %zu input file(s)\n", input_fil_files.size());
+
+    for (size_t i = 0; i < input_fil_files.size(); i++) {
+        if (input_fil_files[i].empty()) {
+            printf("WARNING: Empty filename detected in input list (position %zu)\n", i);
+        }
+    }
+
+    // Configuration validation warnings/information
+    if (input_fil_files.size() == 1) {
+        printf("WARNING: Merging single input file (no coarse channels to merge)\n");
+    }
+
+    if (gOverSampled) {
+        printf("INFO: Oversampled merge mode enabled\n");
+        printf("INFO: Oversampling factor: %.12g\n", gOversamplingFactor);
+        if (gOversamplingFactor > 2.0) {
+            printf("WARNING: High oversampling factor may result in minimal overlap\n");
+        }
+        if (gOversamplingFactor < 1.01) {
+            printf("WARNING: Oversampling factor is very close to 1.0 (minimal improvement)\n");
+        }
+        if (gTrimChannels) {
+            printf("INFO: Output channels will be trimmed to compatible standard sizes\n");
+        }
+    }
+
+    if (gFOFFSign == -1) {
+        printf("INFO: Output frequency offset will be inverted\n");
+    }
+
     fflush(stdout);
 }
 
@@ -205,6 +252,8 @@ int main(int argc, char* argv[]) {
 
     print_parameters();
 
+    print_validation_messages();
+
     // The selected merge allocates the per-channel averages for the caller.
     double* avg_spectrum = NULL;
     int out_channels = 0;
@@ -219,13 +268,21 @@ int main(int argc, char* argv[]) {
     }
 
     if (out_channels < 0) {
+        fprintf(stderr, "ERROR: Merge operation failed\n");
+        fprintf(stderr, "ERROR: Unable to process input files\n");
+        fprintf(stderr, "INFO: Verify input files are valid filterbank format\n");
         delete[] avg_spectrum;
         return EXIT_FAILURE;
     }
 
+    // Merge completion status
+    printf("INFO: Merge operation completed successfully\n");
+    printf("INFO: Output channels: %d\n", out_channels);
+
     FILE* out_f = fopen(gAvgSpectrumFile.c_str(), "w");
     if (!out_f) {
-        perror(gAvgSpectrumFile.c_str());
+        fprintf(stderr, "ERROR: Cannot create average spectrum file '%s': %s\n",
+                gAvgSpectrumFile.c_str(), strerror(errno));
         delete[] avg_spectrum;
         return EXIT_FAILURE;
     }
@@ -234,6 +291,14 @@ int main(int argc, char* argv[]) {
         fprintf(out_f, "%d %.4f\n", ch, avg_spectrum[ch]);
     }
     fclose(out_f);
+
+    // Information about the average spectrum file
+    printf("INFO: Average spectrum with %d channels saved to: %s\n", out_channels,
+           gAvgSpectrumFile.c_str());
+
+    // Resource cleanup
+    printf("INFO: Merge completed successfully\n");
+    printf("INFO: Releasing allocated resources\n");
 
     if (avg_spectrum) {
         delete[] avg_spectrum;

@@ -102,7 +102,7 @@ preferring the largest applicable divisor. Already compatible counts are
 unchanged; a count below 2 cannot be adjusted. For example, 175 channels
 become 128. The output header, average spectrum, and `merged_fine_channels.txt`
 reflect the resulting count. Without `-o`, `-F` has no effect. This adjustment
-does not check other FREDDA compatibility requirements.
+focuses on channel count divisibility and does not enforce all compatibility standards.
 
 With `-o`, `-r FACTOR` sets the oversampling factor as a decimal or a ratio,
 such as `-r 1.25` or `-r 5/4`. It must be finite and greater than 1; the
@@ -116,8 +116,6 @@ counts.
 Each input must begin with the length-prefixed SIGPROC `HEADER_START` keyword.
 Only complete spectra present in every input are written and included in the
 average. The program fails if no complete spectra can be merged.
-
-
 
 ## Developer notes
 

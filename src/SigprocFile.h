@@ -134,7 +134,6 @@ public:
 
     void rewind() {
         if (m_file) {
-            printf("DEBUG : rewind\n");
             ::rewind(m_file);
             m_samples_read = 0;
             seek_sample(0);

@@ -19,6 +19,7 @@ int main(int argc, char** argv) {
     const uint64_t spectra = UINT64_C(2147483653);
     double average = static_cast<double>(spectra) * 2.5;
     SigprocFile output;
+    printf("Spectra count = %" PRIu64 "\n", spectra);
     if (!finish_merge_output(output, &average, 1, spectra) || average != 2.5) {
         fprintf(stderr, "Large spectrum count produced an incorrect average\n");
         return 1;
