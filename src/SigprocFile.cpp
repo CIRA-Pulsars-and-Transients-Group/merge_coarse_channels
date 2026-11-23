@@ -900,18 +900,16 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
         for (int i = 0; i < required_dividers.size(); i++) {
             int divider = required_dividers[i];
             if ((n_out_channels % divider) != 0) {
-                printf(
-                    "WARNING : number of output channels = %d is not divisible by %d\n",
-                    n_out_channels, divider);
+                printf("WARNING : number of output channels = %d is not divisible by %d\n",
+                       n_out_channels, divider);
 
                 int div_divider = int(n_out_channels / divider);
                 int new_out_channels = div_divider * divider;
 
                 if (new_out_channels >= divider) {
                     skip_n_last_channels = (n_out_channels - new_out_channels);
-                    printf(
-                        "INFO : trimming last %d channels for compatibility: %d -> %d\n",
-                        skip_n_last_channels, n_out_channels, new_out_channels);
+                    printf("INFO : trimming last %d channels for compatibility: %d -> %d\n",
+                           skip_n_last_channels, n_out_channels, new_out_channels);
                     n_out_channels = new_out_channels;
                     break;
                 } else {
@@ -1034,8 +1032,7 @@ int SigprocFile::MergeOversampledCoarseChannels(std::vector<std::string>& fil_fi
                    current_file_bytes, current_file_duration, n_out_spectra);
             finish_merge_output(outfil_file, null_spectrum, n_out_channels, n_out_spectra);
             splitter.AdvanceToNextFile();
-            printf("INFO : Creating new output file: %s\n",
-                   splitter.GetCurrentFilename().c_str());
+            printf("INFO : Creating new output file: %s\n", splitter.GetCurrentFilename().c_str());
             prepare_merge_output(outfil_file, splitter.GetCurrentFilename().c_str(), n_out_channels,
                                  foff * foff_sign, null_spectrum);
             current_file_bytes = 0;
