@@ -1,9 +1,7 @@
 # merge_coarse_channels
 
 Standalone extraction of `merge_coarse_channels` and its SIGPROC dependencies
-from Marcin Sokolowski's [mwafrb](https://github.com/marcinsokolowski/mwafrb). The small
-`msfitslib` utilities used by the original have been replaced with local
-equivalents; no `msfitslib`, CFITSIO or libnova installation is required.
+from Marcin Sokolowski's [mwafrb](https://github.com/marcinsokolowski/mwafrb).
 The original implementation of a lot of the code here was done by Keith Bannister.
 
 The extracted code is distributed under GPL-3.0; see [LICENSE](LICENSE).
@@ -139,3 +137,14 @@ clang-format -i src/*.cpp src/*.h tests/*.cpp
 
 On macOS, use `xcrun clang-format` in place of `clang-format` if it is not
 available on your PATH.
+
+## Use of AI in this development
+
+This project benefited a great deal from various AI tools (orchestrated via
+GitHub Co-pilot), which were used to do the initial extraction of necessary
+code, consolidate functionality and implement some testing. It was also very
+handy in building the CMake recipe and installation process. 
+
+That being said, humans were in the loop for all of the decision making and
+judgement calls, and have tested the output versus previous versions (e.g.,
+using the [mwafrb](https://github.com/marcinsokolowski/mwafrb) implementation).
