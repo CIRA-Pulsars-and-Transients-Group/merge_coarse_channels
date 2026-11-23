@@ -215,7 +215,7 @@ class MergeIntegration(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("does not start with HEADER_START", result.stderr)
 
-    def test_oversampled_and_fredda(self):
+    def test_oversampled_with_channel_count_trimming(self):
         spectra = [[[index * 100 + ch for ch in range(64)]] for index in range(3)]
         header, samples = self.run_merge(spectra, options=("-o", "-F"))
         expected = list(range(60))
@@ -227,7 +227,7 @@ class MergeIntegration(unittest.TestCase):
         self.assertEqual(samples, tuple(expected))
         self.assertEqual((self.directory / "merged_fine_channels.txt").read_text(), "128\n")
 
-    def test_oversampled_without_fredda_multiple_spectra(self):
+    def test_oversampled_without_channel_trimming_multiple_spectra(self):
         spectra = [
             [[index * 100 + ch + 10 * time for ch in range(64)] for time in range(2)]
             for index in range(3)
@@ -270,7 +270,7 @@ class MergeIntegration(unittest.TestCase):
         self.assertEqual(default_header["nchans"], explicit_header["nchans"])
         self.assertEqual(default_samples, explicit_samples)
 
-    def test_fredda_trims_across_coarse_channel_boundaries(self):
+    def test_channel_count_trimming_across_boundaries(self):
         spectra = [[[index * 100 + ch for ch in range(64)]] for index in range(100)]
         full_header, full_samples = self.run_merge(spectra, options=("-o", "-r", "100"))
         header, samples = self.run_merge(spectra, options=("-o", "-r", "100", "-F"))
